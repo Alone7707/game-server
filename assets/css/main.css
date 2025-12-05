@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+body {
+  @apply bg-casino-dark text-gray-100 antialiased;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-casino-brown;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-casino-gold-dark rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-casino-gold;
+}
+
+/* Card styles */
+@layer components {
+  .btn-primary {
+    @apply px-6 py-2 bg-gradient-to-r from-casino-gold to-casino-gold-dark text-casino-dark font-bold rounded-lg 
+           hover:from-casino-gold hover:to-casino-gold transition-all duration-200 
+           shadow-lg hover:shadow-gold active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-2 bg-casino-brown border border-casino-gold-dark text-casino-gold font-medium rounded-lg
+           hover:bg-casino-gold-dark hover:text-casino-dark transition-all duration-200
+           active:scale-95;
+  }
+  
+  .btn-danger {
+    @apply px-6 py-2 bg-gradient-to-r from-casino-red to-casino-red-dark text-white font-bold rounded-lg
+           hover:from-red-600 hover:to-red-800 transition-all duration-200
+           active:scale-95;
+  }
+  
+  .btn-success {
+    @apply px-6 py-2 bg-gradient-to-r from-casino-felt to-casino-felt-dark text-white font-bold rounded-lg
+           hover:from-emerald-600 hover:to-emerald-800 transition-all duration-200 border border-casino-gold-dark
+           active:scale-95;
+  }
+  
+  .card-container {
+    @apply bg-casino-brown border border-casino-gold-dark rounded-xl shadow-lg;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2 bg-casino-dark border border-casino-gold-dark rounded-lg
+           text-gray-100 placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-casino-gold focus:border-transparent
+           transition-all duration-200;
+  }
+  
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50;
+  }
+  
+  .modal-content {
+    @apply bg-casino-brown border-2 border-casino-gold rounded-xl p-6 max-w-md w-full mx-4
+           shadow-2xl shadow-gold;
+  }
+  
+  .table-header {
+    @apply bg-casino-dark text-casino-gold font-bold;
+  }
+  
+  .table-row {
+    @apply bg-casino-brown hover:bg-casino-green transition-colors duration-150 border-b border-casino-gold-dark;
+  }
+  
+  /* Playing card styles */
+  .playing-card {
+    @apply relative w-16 h-24 bg-white rounded-lg shadow-card cursor-pointer
+           transition-all duration-200 hover:-translate-y-2 hover:shadow-card-hover
+           flex flex-col items-center justify-between p-1;
+  }
+  
+  .playing-card.selected {
+    @apply -translate-y-4 ring-2 ring-casino-gold;
+  }
+  
+  .playing-card.disabled {
+    @apply brightness-90 cursor-not-allowed hover:translate-y-0;
+  }
+  
+  .card-suit-red {
+    @apply text-card-red;
+  }
+  
+  .card-suit-black {
+    @apply text-card-black;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 5px rgba(201, 162, 39, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(201, 162, 39, 0.8); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+/* Card dealing animation */
+@keyframes dealCard {
+  from { 
+    opacity: 0; 
+    transform: translateY(-100px) rotate(-10deg) scale(0.5); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) rotate(0) scale(1); 
+  }
+}
+
+.deal-card {
+  animation: dealCard 0.3s ease-out forwards;
+}
