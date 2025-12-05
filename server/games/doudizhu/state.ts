@@ -1,9 +1,9 @@
 import type { Room, Player, Card } from '~/types'
 import { createDeck, dealCards, sortCards, analyzePattern, canBeat } from '~/utils/cards'
-import { generateId, generateRoomCode, simpleHash } from '~/utils/helpers'
+import { generateRoomCode, simpleHash } from '~/utils/helpers'
 
 // In-memory game state storage
-interface GameRoom extends Room {
+export interface GameRoom extends Room {
   passwordHash?: string
   deck?: Card[]
   playerHands: Map<string, Card[]>
@@ -237,22 +237,17 @@ class GameStateManager {
     room.biddingPlayer = room.players[room.biddingIndex].id
     
     // Check if bidding is complete
-    // If 2 players passed, the remaining one with highest bid becomes landlord
     if (room.biddingPassed.length >= 2) {
-      // Find the player who didn't pass and had highest bid
       const landlordIndex = [0, 1, 2].find(i => !room.biddingPassed.includes(i))
       if (landlordIndex !== undefined && room.currentBid! > 0) {
         return this.selectLandlord(roomId, room.players[landlordIndex].id)
       } else {
-        // No one bid, restart
         this.resetGame(roomId)
         return { room }
       }
     }
     
-    // If everyone has had a chance and we have a bid
     if (room.biddingIndex === room.biddingPassed[0] && room.currentBid! > 0) {
-      // Find player with highest bid
       const activePlayers = [0, 1, 2].filter(i => !room.biddingPassed.includes(i))
       if (activePlayers.length > 0) {
         return this.selectLandlord(roomId, room.players[activePlayers[0]].id)
