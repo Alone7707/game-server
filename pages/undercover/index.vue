@@ -1,38 +1,35 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
+  <div class="min-h-screen bg-slate-900 p-4 md:p-8">
     <!-- 顶部导航 -->
-    <nav class="bg-black/30 backdrop-blur-sm border-b border-white/10">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <NuxtLink to="/" class="flex items-center gap-2 text-white/80 hover:text-white transition">
-          <span class="text-xl">←</span>
-          <span>返回大厅</span>
-        </NuxtLink>
-        <h1 class="text-xl font-bold text-white flex items-center gap-2">
-          <span class="text-2xl">🕵️</span>
-          谁是卧底
-        </h1>
-        <div class="w-24"></div>
-      </div>
-    </nav>
+    <header class="text-center mb-8">
+      <NuxtLink to="/" class="text-slate-400 hover:text-white text-sm mb-2 inline-block transition-colors">← 返回游戏大厅</NuxtLink>
+      <h1 class="text-4xl md:text-5xl font-bold text-blue-400 mb-2 flex items-center justify-center gap-3">
+        <span class="text-4xl">🕵️</span>
+        谁是卧底
+      </h1>
+      <p class="text-slate-400">经典语言推理游戏，找出隐藏的卧底</p>
+    </header>
 
-    <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
       <!-- 用户信息 -->
-      <div v-if="!userStore.name" class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8">
-        <h2 class="text-lg font-semibold text-white mb-4">设置昵称</h2>
-        <div class="flex gap-4">
-          <input
-            v-model="nickname"
-            type="text"
-            placeholder="请输入昵称"
-            class="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
-            @keyup.enter="setNickname"
-          />
-          <button
-            @click="setNickname"
-            class="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition"
-          >
-            确认
-          </button>
+      <div v-if="!userStore.name" class="max-w-md mx-auto mb-8">
+        <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl shadow-lg backdrop-blur-sm">
+          <h2 class="text-xl font-bold text-blue-400 mb-4">设置昵称</h2>
+          <div class="flex gap-3">
+            <input
+              v-model="nickname"
+              type="text"
+              placeholder="请输入昵称"
+              class="flex-1 bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors"
+              @keyup.enter="setNickname"
+            />
+            <button
+              @click="setNickname"
+              class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            >
+              确认
+            </button>
+          </div>
         </div>
       </div>
 
@@ -41,40 +38,40 @@
         <!-- 左侧：操作区 -->
         <div class="lg:col-span-1 space-y-6">
           <!-- 用户卡片 -->
-          <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
             <div class="flex items-center gap-4 mb-4">
-              <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-2xl">
+              <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center text-3xl border border-slate-600">
                 🕵️
               </div>
               <div>
-                <p class="text-white font-semibold text-lg">{{ userStore.name }}</p>
-                <p class="text-white/60 text-sm">ID: {{ userStore.id?.slice(0, 8) }}</p>
+                <p class="text-slate-200 font-semibold text-lg">{{ userStore.name }}</p>
+                <p class="text-slate-500 text-xs">ID: {{ userStore.id?.slice(0, 8) }}</p>
               </div>
             </div>
           </div>
 
           <!-- 快速开始 -->
-          <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 space-y-4">
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 space-y-4 border border-slate-700/50">
             <button
               @click="quickJoin"
-              class="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold text-lg transition transform hover:scale-[1.02]"
+              class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-lg transition shadow-lg shadow-blue-900/20"
             >
               🎮 快速加入
             </button>
             <button
               @click="showCreateModal = true"
-              class="w-full py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition border border-white/20"
+              class="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition border border-slate-600"
             >
               ➕ 创建房间
             </button>
           </div>
 
           <!-- 游戏规则 -->
-          <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-            <h3 class="text-white font-semibold mb-4 flex items-center gap-2">
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+            <h3 class="text-blue-400 font-semibold mb-4 flex items-center gap-2">
               <span>📖</span> 游戏规则
             </h3>
-            <ul class="text-white/70 text-sm space-y-2">
+            <ul class="text-slate-400 text-sm space-y-2">
               <li>• 3-8人参与，1名卧底 + 其他平民</li>
               <li>• 每人获得一个词语（卧底词与平民词相似但不同）</li>
               <li>• 轮流描述自己的词语，不能说出词语中的字</li>
@@ -87,21 +84,21 @@
 
         <!-- 右侧：房间列表 -->
         <div class="lg:col-span-2">
-          <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 min-h-[500px]">
             <div class="flex items-center justify-between mb-6">
-              <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <h2 class="text-xl font-bold text-slate-200 flex items-center gap-2">
                 <span>🏠</span> 房间列表
               </h2>
               <button
                 @click="refreshRooms"
-                class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition text-sm"
+                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg transition text-sm"
               >
                 🔄 刷新
               </button>
             </div>
 
-            <div v-if="rooms.length === 0" class="text-center py-12 text-white/50">
-              <p class="text-4xl mb-4">🔍</p>
+            <div v-if="rooms.length === 0" class="text-center py-20 text-slate-600">
+              <p class="text-4xl mb-4 opacity-50">🔍</p>
               <p>暂无房间，快来创建一个吧！</p>
             </div>
 
@@ -109,25 +106,25 @@
               <div
                 v-for="room in rooms"
                 :key="room.id"
-                class="bg-white/5 hover:bg-white/10 rounded-xl p-4 transition cursor-pointer border border-white/10"
+                class="bg-slate-700/30 hover:bg-slate-700/50 rounded-xl p-4 transition cursor-pointer border border-slate-700/50 hover:border-slate-600"
                 @click="joinRoom(room)"
               >
                 <div class="flex items-center justify-between">
                   <div>
-                    <h3 class="text-white font-semibold flex items-center gap-2">
+                    <h3 class="text-slate-200 font-semibold flex items-center gap-2">
                       {{ room.name }}
-                      <span v-if="room.hasPassword" class="text-yellow-400">🔒</span>
+                      <span v-if="room.hasPassword" class="text-amber-500 text-xs border border-amber-500/30 px-1 rounded">🔒 密码</span>
                     </h3>
-                    <p class="text-white/50 text-sm mt-1">
+                    <p class="text-slate-500 text-xs mt-1">
                       房主: {{ room.hostName }}
                     </p>
                   </div>
                   <div class="text-right">
-                    <p class="text-white">
-                      <span class="text-green-400">{{ room.players?.length || 0 }}</span>
-                      <span class="text-white/50">/{{ room.maxPlayers }}</span>
+                    <p class="text-slate-300 font-mono">
+                      <span class="text-emerald-400">{{ room.players?.length || 0 }}</span>
+                      <span class="text-slate-600">/{{ room.maxPlayers }}</span>
                     </p>
-                    <p class="text-xs mt-1" :class="room.status === 'waiting' ? 'text-green-400' : 'text-yellow-400'">
+                    <p class="text-[10px] mt-1" :class="room.status === 'waiting' ? 'text-emerald-500' : 'text-amber-500'">
                       {{ room.status === 'waiting' ? '等待中' : '游戏中' }}
                     </p>
                   </div>
@@ -140,42 +137,42 @@
     </div>
 
     <!-- 创建房间弹窗 -->
-    <div v-if="showCreateModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold text-white mb-6">创建房间</h2>
+    <div v-if="showCreateModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 shadow-2xl">
+        <h2 class="text-xl font-bold text-slate-200 mb-6">创建房间</h2>
         
         <div class="space-y-4">
           <div>
-            <label class="block text-white/70 text-sm mb-2">房间名称</label>
+            <label class="block text-slate-400 text-sm mb-2">房间名称</label>
             <input
               v-model="createForm.name"
               type="text"
               placeholder="输入房间名称"
-              class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+              class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
           
           <div>
-            <label class="block text-white/70 text-sm mb-2">房间密码（可选）</label>
+            <label class="block text-slate-400 text-sm mb-2">房间密码（可选）</label>
             <input
               v-model="createForm.password"
               type="password"
               placeholder="不设置则公开"
-              class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+              class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
         </div>
 
-        <div class="flex gap-4 mt-6">
+        <div class="flex gap-4 mt-8">
           <button
             @click="showCreateModal = false"
-            class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition"
+            class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition"
           >
             取消
           </button>
           <button
             @click="createRoom"
-            class="flex-1 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition"
+            class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition shadow-lg shadow-blue-900/20"
           >
             创建
           </button>
@@ -184,28 +181,28 @@
     </div>
 
     <!-- 密码输入弹窗 -->
-    <div v-if="showPasswordModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold text-white mb-6">输入房间密码</h2>
+    <div v-if="showPasswordModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-md border border-slate-700 shadow-2xl">
+        <h2 class="text-xl font-bold text-slate-200 mb-6">输入房间密码</h2>
         
         <input
           v-model="joinPassword"
           type="password"
           placeholder="请输入密码"
-          class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+          class="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
           @keyup.enter="confirmJoinRoom"
         />
 
-        <div class="flex gap-4 mt-6">
+        <div class="flex gap-4 mt-8">
           <button
             @click="showPasswordModal = false; selectedRoom = null"
-            class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition"
+            class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition"
           >
             取消
           </button>
           <button
             @click="confirmJoinRoom"
-            class="flex-1 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition"
+            class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition shadow-lg shadow-blue-900/20"
           >
             加入
           </button>

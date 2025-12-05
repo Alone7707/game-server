@@ -1,30 +1,30 @@
 <template>
-  <div class="min-h-screen p-4 md:p-8">
+  <div class="min-h-screen bg-slate-900 p-4 md:p-8">
     <!-- Header -->
     <header class="text-center mb-8">
-      <NuxtLink to="/" class="text-gray-400 hover:text-casino-gold text-sm mb-2 inline-block">← 返回游戏大厅</NuxtLink>
-      <h1 class="text-4xl md:text-5xl font-bold text-casino-gold mb-2">
+      <NuxtLink to="/" class="text-slate-400 hover:text-white text-sm mb-2 inline-block transition-colors">← 返回游戏大厅</NuxtLink>
+      <h1 class="text-4xl md:text-5xl font-bold text-amber-400 mb-2">
         🃏 斗地主
       </h1>
-      <p class="text-gray-400">经典三人扑克游戏</p>
+      <p class="text-slate-400">经典三人扑克游戏</p>
     </header>
     
     <!-- Name input if not set -->
     <div v-if="!userStore.name" class="max-w-md mx-auto mb-8">
-      <div class="card-container p-6">
-        <h2 class="text-xl font-bold text-casino-gold mb-4">欢迎来到斗地主</h2>
+      <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl shadow-lg backdrop-blur-sm">
+        <h2 class="text-xl font-bold text-amber-400 mb-4">欢迎来到斗地主</h2>
         <form @submit.prevent="setPlayerName">
-          <label class="block text-sm text-gray-300 mb-2">请输入您的昵称</label>
+          <label class="block text-sm text-slate-300 mb-2">请输入您的昵称</label>
           <div class="flex gap-3">
             <input
               v-model="playerName"
               type="text"
-              class="input-field flex-1"
+              class="flex-1 bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500 transition-colors"
               placeholder="您的昵称"
               maxlength="12"
               required
             />
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium transition-colors">
               进入大厅
             </button>
           </div>
@@ -35,23 +35,23 @@
     <!-- Main content -->
     <div v-else class="max-w-5xl mx-auto">
       <!-- User info bar -->
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm">
         <div class="flex items-center gap-3">
-          <span class="text-2xl">{{ userStore.avatar }}</span>
-          <span class="text-lg font-medium text-casino-gold">{{ userStore.name }}</span>
+          <span class="text-2xl grayscale opacity-80">{{ userStore.avatar }}</span>
+          <span class="text-lg font-medium text-slate-200">{{ userStore.name }}</span>
           <span 
-            class="text-sm px-2 py-1 rounded"
-            :class="userStore.isConnected ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'"
+            class="text-xs px-2 py-1 rounded border"
+            :class="userStore.isConnected ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' : 'bg-rose-900/30 text-rose-400 border-rose-800'"
           >
             {{ userStore.isConnected ? '已连接' : '未连接' }}
           </span>
         </div>
         
         <div class="flex gap-3">
-          <button class="btn-primary" @click="showCreateModal = true">
+          <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-lg shadow-blue-900/20" @click="showCreateModal = true">
             ➕ 创建房间
           </button>
-          <button class="btn-success" @click="handleQuickJoin">
+          <button class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-lg shadow-emerald-900/20" @click="handleQuickJoin">
             ⚡ 快速加入
           </button>
         </div>
@@ -60,30 +60,36 @@
       <!-- Error message -->
       <div 
         v-if="roomStore.error" 
-        class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-4 flex items-center justify-between"
+        class="bg-rose-900/30 border border-rose-500/50 text-rose-300 px-4 py-3 rounded-lg mb-4 flex items-center justify-between"
       >
         <span>{{ roomStore.error }}</span>
-        <button class="text-red-400 hover:text-red-200" @click="roomStore.clearError()">✕</button>
+        <button class="text-rose-400 hover:text-rose-200" @click="roomStore.clearError()">✕</button>
       </div>
       
       <!-- Room list -->
-      <div class="mb-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xl font-bold text-casino-gold">房间列表</h2>
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-slate-200 flex items-center gap-2">
+            <span>🏠</span> 房间列表
+          </h2>
           <button 
-            class="text-sm text-casino-gold hover:text-yellow-400 flex items-center gap-1"
+            class="text-sm text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors"
             @click="refreshRooms"
           >
             🔄 刷新
           </button>
         </div>
-        <RoomList :rooms="roomStore.rooms" @join="handleJoinRoom" />
+        <div class="bg-slate-800/30 rounded-2xl p-1 min-h-[200px]">
+          <RoomList :rooms="roomStore.rooms" @join="handleJoinRoom" />
+        </div>
       </div>
       
       <!-- Game rules -->
-      <div class="card-container p-6 mt-8">
-        <h3 class="text-lg font-bold text-casino-gold mb-3">🎮 游戏规则</h3>
-        <div class="text-gray-300 text-sm space-y-2">
+      <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl shadow-lg backdrop-blur-sm">
+        <h3 class="text-lg font-bold text-amber-400 mb-3 flex items-center gap-2">
+          <span>🎮</span> 游戏规则
+        </h3>
+        <div class="text-slate-400 text-sm space-y-2">
           <p><strong>基本规则：</strong>三人游戏，一副牌54张。每人17张牌，3张底牌归地主。</p>
           <p><strong>叫地主：</strong>玩家可以选择叫1分、2分、3分或不叫。叫分最高者成为地主。</p>
           <p><strong>出牌规则：</strong>地主先出牌，按顺序轮流出牌。后出的牌必须大过前面的牌。</p>

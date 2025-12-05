@@ -1,54 +1,60 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col bg-slate-900">
     <!-- Top bar -->
-    <header class="bg-casino-brown border-b border-casino-gold-dark px-4 py-3">
+    <header class="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-4 py-3">
       <div class="max-w-6xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <button class="text-casino-gold hover:text-yellow-400" @click="handleLeaveRoom">
+          <button class="text-slate-300 hover:text-white transition" @click="handleLeaveRoom">
             ← 离开房间
           </button>
-          <span class="text-gray-400">|</span>
-          <span class="text-casino-gold font-mono">房间: {{ roomId }}</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400 font-mono text-sm">房间: {{ roomId }}</span>
         </div>
         
         <div class="flex items-center gap-4">
-          <span class="text-sm text-gray-400">底分: <span class="text-casino-gold font-bold">{{ currentRoom?.baseScore || 1 }}</span></span>
-          <span class="text-sm text-gray-400">倍数: <span class="text-casino-gold font-bold">{{ gameStore.multiplier }}x</span></span>
+          <span class="text-sm text-slate-400">底分: <span class="text-amber-400 font-bold">{{ currentRoom?.baseScore || 1 }}</span></span>
+          <span class="text-sm text-slate-400">倍数: <span class="text-amber-400 font-bold">{{ gameStore.multiplier }}x</span></span>
         </div>
       </div>
     </header>
     
     <!-- Game area -->
-    <main class="flex-1 bg-felt-gradient p-4">
-      <div class="max-w-6xl mx-auto h-full">
+    <main class="flex-1 bg-slate-900 p-4 relative overflow-hidden">
+      <!-- 背景装饰 -->
+      <div class="absolute inset-0 opacity-5 pointer-events-none">
+        <div class="absolute top-0 left-0 w-64 h-64 bg-slate-700 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-slate-700 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
+      </div>
+
+      <div class="max-w-6xl mx-auto h-full relative z-10">
         <!-- Waiting state -->
         <div v-if="gameStore.phase === 'waiting'" class="h-full flex flex-col items-center justify-center">
-          <div class="card-container p-8 text-center max-w-lg">
-            <h2 class="text-2xl font-bold text-casino-gold mb-6">等待玩家加入</h2>
+          <div class="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl text-center max-w-lg w-full shadow-xl backdrop-blur-sm">
+            <h2 class="text-2xl font-bold text-slate-200 mb-6">等待玩家加入</h2>
             
             <!-- Player slots -->
             <div class="grid grid-cols-3 gap-4 mb-8">
               <div 
                 v-for="i in 3" 
                 :key="i"
-                class="bg-casino-dark rounded-lg p-4"
+                class="bg-slate-700/50 rounded-xl p-4 border border-slate-600"
               >
                 <template v-if="players[i - 1]">
-                  <div class="text-3xl mb-2">🎮</div>
-                  <div class="text-casino-gold font-medium">{{ players[i - 1].name }}</div>
+                  <div class="text-3xl mb-2 grayscale opacity-80">🎮</div>
+                  <div class="text-slate-200 font-medium truncate">{{ players[i - 1].name }}</div>
                   <div 
-                    class="text-sm mt-1"
-                    :class="players[i - 1].isReady ? 'text-green-400' : 'text-gray-500'"
+                    class="text-xs mt-1"
+                    :class="players[i - 1].isReady ? 'text-emerald-400' : 'text-slate-500'"
                   >
                     {{ players[i - 1].isReady ? '已准备' : '未准备' }}
                   </div>
-                  <div v-if="players[i - 1].id === currentRoom?.hostId" class="text-yellow-400 text-xs mt-1">
-                    👑 房主
+                  <div v-if="players[i - 1].id === currentRoom?.hostId" class="text-amber-500 text-[10px] mt-1 border border-amber-500/30 rounded px-1 inline-block">
+                    房主
                   </div>
                 </template>
                 <template v-else>
-                  <div class="text-3xl mb-2 opacity-30">👤</div>
-                  <div class="text-gray-500">等待加入</div>
+                  <div class="text-3xl mb-2 opacity-20">👤</div>
+                  <div class="text-slate-600 text-sm">空位</div>
                 </template>
               </div>
             </div>
@@ -57,21 +63,21 @@
             <div class="flex flex-col gap-3">
               <button
                 v-if="!isReady && !isHost"
-                class="btn-success w-full"
+                class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition shadow-lg shadow-emerald-900/20"
                 @click="handleReady"
               >
-                ✓ 准备
+                准备
               </button>
               <button
                 v-if="isReady && !isHost"
-                class="btn-secondary w-full"
+                class="w-full py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-xl font-bold transition"
                 @click="handleCancelReady"
               >
                 取消准备
               </button>
               <button
                 v-if="isHost"
-                class="btn-primary w-full"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold transition shadow-lg shadow-blue-900/20"
                 :disabled="!canStart"
                 @click="handleStartGame"
               >
@@ -81,7 +87,7 @@
           </div>
         </div>
         
-        <!-- Game playing state - 使用固定布局 -->
+        <!-- Game playing state -->
         <div v-else class="relative h-full w-full overflow-hidden" style="min-height: calc(100vh - 120px);">
           
           <!-- 左上角玩家 -->
@@ -108,8 +114,8 @@
           <div class="absolute inset-0 pointer-events-none">
             <!-- 地主牌 - 固定在顶部中间 -->
             <div v-if="gameStore.landlordCards.length > 0" class="absolute top-16 left-1/2 transform -translate-x-1/2 pointer-events-auto z-20">
-              <div class="text-center text-xs text-gray-400 mb-1">地主牌</div>
-              <div class="flex justify-center gap-1 p-2 bg-black/40 rounded-lg border border-casino-gold/30 backdrop-blur-sm">
+              <div class="text-center text-[10px] text-slate-500 mb-1">地主牌</div>
+              <div class="flex justify-center gap-1 p-2 bg-slate-800/80 rounded-lg border border-slate-700 backdrop-blur-sm shadow-lg">
                 <div 
                   v-for="card in gameStore.landlordCards" 
                   :key="card.id"
@@ -122,14 +128,14 @@
             
             <!-- 叫分状态 -->
             <div v-if="gameStore.phase === 'bidding'" class="absolute inset-0 flex items-center justify-center pointer-events-auto z-30">
-              <div class="text-center bg-black/60 p-6 rounded-xl backdrop-blur-sm border border-casino-gold/50 shadow-2xl">
-                <div class="text-3xl text-casino-gold mb-6 font-bold drop-shadow-md">
+              <div class="text-center bg-slate-800/90 p-6 rounded-2xl backdrop-blur-sm border border-slate-700 shadow-2xl max-w-md w-full mx-4">
+                <div class="text-2xl text-slate-200 mb-6 font-bold">
                   {{ gameStore.isMyTurn ? '请叫分' : `等待 ${getCurrentBidderName()} 叫分...` }}
                 </div>
                 
-                <div v-if="gameStore.isMyTurn" class="flex gap-4 justify-center">
+                <div v-if="gameStore.isMyTurn" class="flex gap-3 justify-center">
                   <button 
-                    class="btn-secondary px-8 py-2 shadow-lg hover:-translate-y-0.5 transition-transform"
+                    class="px-6 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium transition shadow-md"
                     @click="handlePassBid"
                   >
                     不叫
@@ -137,7 +143,7 @@
                   <button 
                     v-for="score in availableBids"
                     :key="score"
-                    class="btn-primary px-8 py-2 shadow-lg hover:-translate-y-0.5 transition-transform"
+                    class="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold transition shadow-md"
                     @click="handleBid(score)"
                   >
                     {{ score }} 分
@@ -156,17 +162,17 @@
                       v-for="(card, index) in getSortedPlayedCards(getOpponentLastPlayed(opponents[0]?.id)!)" 
                       :key="card.id"
                       :style="{ marginLeft: index > 0 ? '-30px' : '0', zIndex: index }"
-                      class="transform scale-90"
+                      class="transform scale-90 shadow-md"
                     >
                       <PlayingCard :card="card" :is-read-only="true" />
                     </div>
                   </div>
-                  <div v-if="getOpponentPassed(opponents[0]?.id)" class="text-gray-400 font-bold bg-black/50 px-3 py-1 rounded">
+                  <div v-if="getOpponentPassed(opponents[0]?.id)" class="text-slate-400 font-bold bg-slate-800/80 px-3 py-1 rounded text-sm border border-slate-700">
                     不出
                   </div>
                 </div>
               </div>
-              <div v-else-if="getOpponentPassed(opponents[0]?.id)" class="absolute top-1/3 left-32 transform -translate-y-1/2 text-gray-400 font-bold text-xl bg-black/50 px-4 py-2 rounded">
+              <div v-else-if="getOpponentPassed(opponents[0]?.id)" class="absolute top-1/3 left-32 transform -translate-y-1/2 text-slate-400 font-bold text-lg bg-slate-800/80 px-4 py-2 rounded border border-slate-700">
                 不出
               </div>
 
@@ -178,17 +184,17 @@
                       v-for="(card, index) in getSortedPlayedCards(getOpponentLastPlayed(opponents[1]?.id)!)" 
                       :key="card.id"
                       :style="{ marginLeft: index > 0 ? '-30px' : '0', zIndex: index }"
-                      class="transform scale-90"
+                      class="transform scale-90 shadow-md"
                     >
                       <PlayingCard :card="card" :is-read-only="true" />
                     </div>
                   </div>
-                  <div v-if="getOpponentPassed(opponents[1]?.id)" class="text-gray-400 font-bold bg-black/50 px-3 py-1 rounded">
+                  <div v-if="getOpponentPassed(opponents[1]?.id)" class="text-slate-400 font-bold bg-slate-800/80 px-3 py-1 rounded text-sm border border-slate-700">
                     不出
                   </div>
                 </div>
               </div>
-              <div v-else-if="getOpponentPassed(opponents[1]?.id)" class="absolute top-1/3 right-32 transform -translate-y-1/2 text-gray-400 font-bold text-xl bg-black/50 px-4 py-2 rounded">
+              <div v-else-if="getOpponentPassed(opponents[1]?.id)" class="absolute top-1/3 right-32 transform -translate-y-1/2 text-slate-400 font-bold text-lg bg-slate-800/80 px-4 py-2 rounded border border-slate-700">
                 不出
               </div>
 
@@ -199,7 +205,7 @@
                     v-for="(card, index) in getSortedPlayedCards(gameStore.lastPlayedCards)" 
                     :key="card.id"
                     :style="{ marginLeft: index > 0 ? '-30px' : '0', zIndex: index }"
-                    class="transform hover:scale-105 transition-transform"
+                    class="transform hover:scale-105 transition-transform shadow-lg"
                   >
                     <PlayingCard :card="card" :is-read-only="true" />
                   </div>
@@ -208,10 +214,10 @@
               
               <!-- 轮次提示 -->
               <div class="absolute top-[58%] left-1/2 transform -translate-x-1/2 mt-4 text-center z-30">
-                <div v-if="gameStore.isMyTurn" class="text-2xl text-green-400 font-bold animate-pulse drop-shadow-md bg-black/30 px-6 py-2 rounded-full border border-green-500/30 backdrop-blur-sm">
+                <div v-if="gameStore.isMyTurn" class="text-xl text-emerald-400 font-bold animate-pulse bg-slate-800/80 px-6 py-2 rounded-full border border-emerald-500/30 backdrop-blur-sm shadow-lg">
                   轮到你了
                 </div>
-                <div v-else class="text-xl text-casino-gold drop-shadow-md bg-black/30 px-6 py-2 rounded-full border border-casino-gold/30 backdrop-blur-sm">
+                <div v-else class="text-lg text-amber-200/70 bg-slate-800/60 px-6 py-2 rounded-full border border-slate-600/50 backdrop-blur-sm">
                   等待 {{ getCurrentPlayerName() }} 出牌...
                 </div>
               </div>
@@ -219,25 +225,25 @@
           </div>
           
           <!-- 底部操作区域 -->
-          <div class="absolute bottom-0 left-0 right-0 pb-4 pt-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-20">
+          <div class="absolute bottom-0 left-0 right-0 pb-4 pt-12 bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent z-20">
             <!-- 操作按钮栏 -->
             <div v-if="gameStore.phase === 'playing' && gameStore.isMyTurn" class="flex justify-center gap-4 mb-4">
               <button 
                 v-if="gameStore.canPass"
-                class="btn-secondary px-8 py-2 shadow-lg hover:-translate-y-1 transition-transform"
+                class="px-8 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium shadow-lg transition-transform hover:-translate-y-0.5"
                 @click="handlePass"
               >
                 不出
               </button>
               <button
-                class="btn-primary px-8 py-2 shadow-lg hover:-translate-y-1 transition-transform disabled:opacity-50 disabled:hover:translate-y-0"
+                class="px-8 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-bold shadow-lg transition-transform hover:-translate-y-0.5 disabled:transform-none"
                 :disabled="!canPlay"
                 @click="handlePlay"
               >
                 出牌
               </button>
               <button
-                class="bg-gray-600 text-white px-6 py-2 rounded shadow-lg hover:bg-gray-500 hover:-translate-y-1 transition-transform"
+                class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium shadow-lg transition-transform hover:-translate-y-0.5"
                 @click="gameStore.clearSelection()"
               >
                 重选
@@ -245,27 +251,27 @@
             </div>
 
             <!-- 玩家信息栏 -->
-            <div class="flex items-center justify-center gap-4 mb-2 text-shadow">
-              <div class="flex items-center gap-2 bg-black/30 px-4 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                <span class="text-2xl">{{ userStore.avatar }}</span>
-                <span class="text-casino-gold font-bold text-lg">{{ userStore.name }}</span>
-                <span v-if="gameStore.landlordId === userStore.id" class="text-yellow-400 font-bold px-2 py-0.5 bg-yellow-900/50 rounded">👑 地主</span>
-                <span v-else-if="gameStore.landlordId" class="text-gray-400 px-2 py-0.5 bg-gray-800/50 rounded">农民</span>
+            <div class="flex items-center justify-center gap-4 mb-2">
+              <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-1.5 rounded-full border border-slate-700 backdrop-blur-sm">
+                <span class="text-xl grayscale opacity-80">{{ userStore.avatar }}</span>
+                <span class="text-slate-200 font-bold">{{ userStore.name }}</span>
+                <span v-if="gameStore.landlordId === userStore.id" class="text-amber-400 font-bold text-xs px-2 py-0.5 bg-amber-900/30 border border-amber-700/30 rounded ml-2">👑 地主</span>
+                <span v-else-if="gameStore.landlordId" class="text-slate-400 text-xs px-2 py-0.5 bg-slate-700/50 rounded ml-2">农民</span>
               </div>
               
               <!-- 牌型提示 -->
-              <div v-if="gameStore.selectedCards.length > 0" class="px-3 py-1 rounded-full bg-black/40 backdrop-blur-sm">
-                <span v-if="gameStore.isValidSelection" class="text-green-400 font-bold">
+              <div v-if="gameStore.selectedCards.length > 0" class="px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 backdrop-blur-sm">
+                <span v-if="gameStore.isValidSelection" class="text-emerald-400 font-bold text-sm">
                   {{ getPatternName(gameStore.selectedPattern?.pattern) }}
                 </span>
-                <span v-else class="text-red-400 font-bold">
+                <span v-else class="text-rose-400 font-bold text-sm">
                   无效牌型
                 </span>
               </div>
             </div>
             
             <!-- 手牌区域 -->
-            <div class="px-4">
+            <div class="px-4 pb-2">
               <CardHand
                 :cards="gameStore.sortedCards"
                 :selected-cards="gameStore.selectedCards"
