@@ -2,6 +2,7 @@ import { Server as SocketServer } from 'socket.io'
 import type { H3Event } from 'h3'
 import type { GameModule, GameContext } from '../games/types'
 import { doudizhuModule } from '../games/doudizhu/handler'
+import { undercoverModule } from '../games/undercover/handler'
 
 // 全局 Socket.IO 实例
 let io: SocketServer | null = null
@@ -11,6 +12,7 @@ const userSockets = new Map<string, string>() // userId -> socketId
 // 已注册的游戏模块
 const gameModules: GameModule[] = [
   doudizhuModule,
+  undercoverModule,
   // 后续可在此添加其他游戏模块
 ]
 

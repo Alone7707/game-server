@@ -25,15 +25,19 @@
           </div>
         </NuxtLink>
         
-        <!-- 更多游戏占位 -->
-        <div class="card-container p-6 opacity-50 cursor-not-allowed">
-          <div class="text-6xl mb-4">🀄</div>
-          <h2 class="text-2xl font-bold text-gray-500 mb-2">麻将</h2>
-          <p class="text-gray-500 text-sm">敬请期待...</p>
-          <div class="mt-4 text-xs text-gray-600">
-            <span class="inline-block bg-casino-dark px-2 py-1 rounded">即将上线</span>
+        <!-- 谁是卧底 -->
+        <NuxtLink 
+          to="/undercover" 
+          class="card-container p-6 hover:border-purple-500 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group"
+        >
+          <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">🕵️</div>
+          <h2 class="text-2xl font-bold text-purple-400 mb-2">谁是卧底</h2>
+          <p class="text-gray-400 text-sm">经典语言推理游戏，找出隐藏的卧底</p>
+          <div class="mt-4 text-xs text-gray-500">
+            <span class="inline-block bg-casino-dark px-2 py-1 rounded mr-2">3-8人</span>
+            <span class="inline-block bg-casino-dark px-2 py-1 rounded">词语对决</span>
           </div>
-        </div>
+        </NuxtLink>
         
         <div class="card-container p-6 opacity-50 cursor-not-allowed">
           <div class="text-6xl mb-4">♠️</div>
