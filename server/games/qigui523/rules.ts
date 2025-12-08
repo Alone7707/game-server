@@ -283,10 +283,24 @@ export function isValidPlay(
     return { valid: false, reason: '张数必须与上家相同' }
   }
   
-  // 三带二 vs 三带二：比较三张的点数
-  // 其他牌型：直接比较主值
-  if (pattern.mainValue <= lastPlay.mainValue) {
+  // 比较大小
+  if (pattern.mainValue < lastPlay.mainValue) {
     return { valid: false, reason: '必须比上家大' }
+  }
+  
+  // 点数相同时，比较花色（仅对单张有效）
+  if (pattern.mainValue === lastPlay.mainValue) {
+    if (pattern.pattern === 'single' && lastPlay.pattern === 'single') {
+      // 单张同点数比较花色
+      const currentSuit = getSuitValue(cards[0])
+      const lastSuit = getSuitValue(lastPlay.cards[0])
+      if (currentSuit <= lastSuit) {
+        return { valid: false, reason: '花色必须比上家大（黑桃>红桃>梅花>方块）' }
+      }
+    } else {
+      // 其他牌型同点数不能出
+      return { valid: false, reason: '必须比上家大' }
+    }
   }
   
   return { valid: true, pattern }
