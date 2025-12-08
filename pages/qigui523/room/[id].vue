@@ -129,22 +129,42 @@
 
           <!-- 中央出牌区域 -->
           <div class="flex-1 flex items-center justify-center">
-            <div class="bg-slate-800/30 rounded-2xl p-8 min-w-[400px] min-h-[200px] border border-slate-700/50 flex flex-col items-center justify-center">
-              <div v-if="room.lastPlay && !room.lastPlay.passed" class="flex gap-1">
+            <div class="bg-slate-800/30 rounded-2xl p-4 w-[420px] h-[220px] border border-slate-700/50 flex flex-col">
+              <!-- 历史出牌区（一行展示，除了最后一手） -->
+              <div v-if="historyCards.length > 0" class="flex-none h-16 flex items-center justify-center gap-0.5 overflow-hidden border-b border-slate-700/30 pb-2 mb-2">
                 <div 
-                  v-for="(card, index) in room.lastPlay.cards" 
+                  v-for="(card, index) in historyCards" 
                   :key="card.id"
-                  class="transform hover:scale-105 transition-transform"
-                  :style="{ marginLeft: index > 0 ? '-20px' : '0', zIndex: index }"
+                  class="-ml-6 first:ml-0"
+                  :style="{ zIndex: index }"
                 >
-                  <Qigui523PlayingCard :card="card" />
+                  <Qigui523PlayingCard :card="card" size="sm" />
                 </div>
               </div>
-              <div v-else-if="room.lastPlay?.passed" class="text-slate-500 text-xl">
-                {{ getPlayerName(room.lastPlay.playerId) }} 选择 Pass
+              
+              <!-- 当前出牌区（最新一手） -->
+              <div class="flex-1 flex flex-col items-center justify-center">
+                <div v-if="room.lastPlay && !room.lastPlay.passed" class="flex gap-1">
+                  <div 
+                    v-for="(card, index) in room.lastPlay.cards" 
+                    :key="card.id"
+                    class="-ml-4 first:ml-0"
+                    :style="{ zIndex: index }"
+                  >
+                    <Qigui523PlayingCard :card="card" />
+                  </div>
+                </div>
+                <div v-else-if="room.lastPlay?.passed" class="text-slate-500">
+                  {{ getPlayerName(room.lastPlay.playerId) }} Pass
+                </div>
+                <div v-else-if="!room.playHistory?.length" class="text-slate-600">
+                  等待出牌...
+                </div>
               </div>
-              <div v-else class="text-slate-600 text-lg">
-                等待出牌...
+              
+              <!-- 本轮积分提示 -->
+              <div v-if="room.roundCards && room.roundCards.length > 0" class="flex-none text-center text-xs text-slate-500 pt-2 border-t border-slate-700/30">
+                本轮分数: <span class="text-amber-400 font-bold">{{ roundPoints }}</span>
               </div>
             </div>
           </div>
@@ -328,6 +348,13 @@ interface Room {
     pattern: string
     passed: boolean
   } | null
+  roundCards: Card[]  // 本轮所有出的牌
+  playHistory: Array<{
+    playerId: string
+    cards: Card[]
+    pattern: string
+    passed: boolean
+  }>  // 本轮出牌历史
 }
 
 const route = useRoute()
@@ -362,6 +389,24 @@ const canStart = computed(() => {
   if (!room.value) return false
   return room.value.players.length === room.value.rules.playerCount &&
          room.value.players.every(p => p.isReady)
+})
+
+// 计算本轮牌堆的分数（5=5分，10=10分，K=10分）
+const roundPoints = computed(() => {
+  if (!room.value?.roundCards) return 0
+  return room.value.roundCards.reduce((sum, card) => {
+    if (card.rank === '5') return sum + 5
+    if (card.rank === '10' || card.rank === 'K') return sum + 10
+    return sum
+  }, 0)
+})
+
+// 历史出牌（除了最后一手的所有牌）
+const historyCards = computed(() => {
+  if (!room.value?.playHistory || room.value.playHistory.length <= 1) return []
+  // 排除最后一手，取前面所有出牌的牌
+  const history = room.value.playHistory.slice(0, -1)
+  return history.flatMap(play => play.cards)
 })
 
 const sortedPlayers = computed(() => {

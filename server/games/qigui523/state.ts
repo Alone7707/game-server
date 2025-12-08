@@ -57,6 +57,7 @@ export class QiGui523StateManager {
       lastPlay: null,
       roundStarter: null,
       roundCards: [],
+      playHistory: [],
       passCount: 0,
       turnOrder: [],
       firstRound: true,
@@ -75,7 +76,7 @@ export class QiGui523StateManager {
     playerId: string,
     playerName: string,
     password?: string
-  ): { success: boolean; room?: Room; error?: string } {
+  ): { success: boolean; room?: Room; error?: string; isReconnect?: boolean; wasOffline?: boolean } {
     const room = this.rooms.get(roomId)
 
     if (!room) {
@@ -85,8 +86,9 @@ export class QiGui523StateManager {
     // 检查是否已在房间（重连）
     const existingPlayer = room.players.find(p => p.id === playerId)
     if (existingPlayer) {
+      const wasOffline = !existingPlayer.isOnline
       existingPlayer.isOnline = true
-      return { success: true, room }
+      return { success: true, room, isReconnect: true, wasOffline }
     }
 
     // 检查房间状态
@@ -248,6 +250,7 @@ export class QiGui523StateManager {
     room.lastPlay = null
     room.passCount = 0
     room.roundCards = []
+    room.playHistory = []
     room.firstRound = true
     room.finishOrder = []
 
@@ -308,12 +311,14 @@ export class QiGui523StateManager {
     player.hand = player.hand.filter(c => !cardIds.includes(c.id))
 
     // 记录本次出牌
-    room.lastPlay = {
+    const playRecord: PlayRecord = {
       playerId,
       cards,
       pattern: pattern.pattern,
       passed: false,
     }
+    room.lastPlay = playRecord
+    room.playHistory.push(playRecord)  // 添加到出牌历史
 
     // 如果是本轮第一个出牌，记录出牌者
     if (!room.roundStarter) {
@@ -343,6 +348,16 @@ export class QiGui523StateManager {
         this.endRound(room)
         room.phase = 'finished'
         return { success: true, room, roundWinner: room.finishOrder[0] }
+      }
+      
+      // 牌堆为空时，第一个出完牌的玩家触发清算
+      if (room.deck.length === 0) {
+        // 先结算本轮分数
+        this.endRound(room)
+        // 清算：没出完牌的玩家手上有多少分就倒扣多少分
+        this.finalSettlement(room)
+        room.phase = 'finished'
+        return { success: true, room, roundWinner: playerId }
       }
     }
 
@@ -462,6 +477,7 @@ export class QiGui523StateManager {
 
     // 清空本轮状态
     room.roundCards = []
+    room.playHistory = []  // 清空出牌历史
     room.lastPlay = null
     room.passCount = 0
     room.roundStarter = winnerId || null
@@ -484,6 +500,21 @@ export class QiGui523StateManager {
     }
 
     return { success: true, room, roundWinner: winnerId }
+  }
+
+  /**
+   * 最终清算：牌堆为空且有人出完牌时触发
+   * 没出完牌的玩家手上有多少分就倒扣多少分
+   */
+  private finalSettlement(room: Room): void {
+    for (const player of room.players) {
+      if (player.hand.length > 0) {
+        // 计算手牌中的分值（5=5分，10=10分，K=10分）
+        const handPoints = calculatePoints(player.hand)
+        // 倒扣分数
+        player.score -= handPoints
+      }
+    }
   }
 
   // ============ 查询方法 ============
@@ -560,6 +591,7 @@ export class QiGui523StateManager {
     room.lastPlay = null
     room.roundStarter = null
     room.roundCards = []
+    room.playHistory = []
     room.passCount = 0
     room.turnOrder = []
     room.firstRound = true
@@ -575,7 +607,7 @@ export class QiGui523StateManager {
   }
 
   // 快速加入
-  quickJoin(playerId: string, playerName: string): { success: boolean; room?: Room; error?: string } {
+  quickJoin(playerId: string, playerName: string): { success: boolean; room?: Room; error?: string; isReconnect?: boolean; wasOffline?: boolean } {
     // 查找可加入的房间
     for (const room of this.rooms.values()) {
       if (room.phase === 'waiting' && 

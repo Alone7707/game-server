@@ -61,6 +61,7 @@ export interface Room {
   lastPlay: PlayRecord | null  // 上一手有效出牌（非pass）
   roundStarter: string | null  // 本轮首个出牌者
   roundCards: Card[]  // 本轮桌面上的牌（用于捡分）
+  playHistory: PlayRecord[]  // 本轮出牌历史（用于显示）
   passCount: number  // 连续pass次数
   turnOrder: string[]  // 出牌顺序（逆时针）
   firstRound: boolean  // 是否是游戏第一轮（需要出最小牌）

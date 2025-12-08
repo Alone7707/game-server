@@ -1,7 +1,8 @@
 <template>
   <div 
-    class="relative w-14 h-20 rounded-lg shadow-md transition-all select-none"
+    class="relative rounded-lg shadow-md transition-all select-none"
     :class="[
+      sizeClass,
       selected ? 'ring-2 ring-emerald-400 shadow-emerald-500/30' : '',
       isJoker ? 'bg-gradient-to-br from-purple-900 to-purple-700' : 'bg-white'
     ]"
@@ -10,32 +11,29 @@
     <div class="absolute inset-0 flex flex-col items-center justify-center p-1">
       <!-- 花色和点数 -->
       <div 
-        class="text-xs font-bold"
-        :class="suitColor"
+        :class="[rankTextSize, suitColor, 'font-bold']"
       >
         {{ displayRank }}
       </div>
       <div 
-        class="text-2xl"
-        :class="suitColor"
+        :class="[suitTextSize, suitColor]"
       >
         {{ suitSymbol }}
       </div>
     </div>
 
     <!-- 角标 -->
-    <div class="absolute top-0.5 left-1 text-[10px] font-bold" :class="suitColor">
+    <div :class="['absolute top-0.5 left-1 font-bold', cornerTextSize, suitColor]">
       {{ displayRank }}
     </div>
-    <div class="absolute bottom-0.5 right-1 text-[10px] font-bold rotate-180" :class="suitColor">
+    <div :class="['absolute bottom-0.5 right-1 font-bold rotate-180', cornerTextSize, suitColor]">
       {{ displayRank }}
     </div>
 
     <!-- 特殊牌标记 (7, 鬼, 5, 2, 3) -->
     <div 
       v-if="isSpecialCard" 
-      class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold"
-      :class="specialCardBadge"
+      :class="['absolute -top-1 -right-1 rounded-full flex items-center justify-center font-bold', badgeSize, specialCardBadge]"
     >
       {{ specialRank }}
     </div>
@@ -57,6 +55,47 @@ const props = defineProps<{
   size?: 'sm' | 'md' | 'lg'
   selected?: boolean
 }>()
+
+// 尺寸相关的样式
+const sizeClass = computed(() => {
+  switch (props.size) {
+    case 'sm': return 'w-10 h-14'
+    case 'lg': return 'w-16 h-24'
+    default: return 'w-14 h-20'
+  }
+})
+
+const rankTextSize = computed(() => {
+  switch (props.size) {
+    case 'sm': return 'text-[10px]'
+    case 'lg': return 'text-sm'
+    default: return 'text-xs'
+  }
+})
+
+const suitTextSize = computed(() => {
+  switch (props.size) {
+    case 'sm': return 'text-lg'
+    case 'lg': return 'text-3xl'
+    default: return 'text-2xl'
+  }
+})
+
+const cornerTextSize = computed(() => {
+  switch (props.size) {
+    case 'sm': return 'text-[8px]'
+    case 'lg': return 'text-xs'
+    default: return 'text-[10px]'
+  }
+})
+
+const badgeSize = computed(() => {
+  switch (props.size) {
+    case 'sm': return 'w-3 h-3 text-[6px]'
+    case 'lg': return 'w-5 h-5 text-[10px]'
+    default: return 'w-4 h-4 text-[8px]'
+  }
+})
 
 const isJoker = computed(() => props.card.suit === 'joker')
 

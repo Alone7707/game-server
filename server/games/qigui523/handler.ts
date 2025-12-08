@@ -74,14 +74,29 @@ export const qigui523Module: GameModule = {
       room: qigui523State.getRoomPublicData(result.room!, data.userId),
     })
 
-    // 通知房间内其他玩家（给每个玩家发送包含其手牌的数据）
+    // 通知房间内其他玩家
+    const eventName = result.isReconnect && result.wasOffline 
+      ? `${prefix}room:player_reconnected` 
+      : `${prefix}room:player_joined`
+    
     for (const player of result.room!.players) {
       if (player.id !== data.userId) {
         const playerSocket = getSocketByUserId(io, userSockets, player.id)
         if (playerSocket) {
-          playerSocket.emit(`${prefix}room:player_joined`, {
-            room: qigui523State.getRoomPublicData(result.room!, player.id),
-          })
+          if (result.isReconnect && result.wasOffline) {
+            // 重连：发送 player_reconnected
+            playerSocket.emit(eventName, {
+              playerId: data.userId,
+              playerName: data.userName,
+              room: qigui523State.getRoomPublicData(result.room!, player.id),
+            })
+          } else if (!result.isReconnect) {
+            // 新加入：发送 player_joined
+            playerSocket.emit(eventName, {
+              room: qigui523State.getRoomPublicData(result.room!, player.id),
+            })
+          }
+          // 如果是重连但之前在线（wasOffline=false），不发送任何通知
         }
       }
     }
@@ -107,14 +122,22 @@ export const qigui523Module: GameModule = {
       room: qigui523State.getRoomPublicData(result.room!, data.userId),
     })
 
-    // 通知房间内其他玩家（给每个玩家发送包含其手牌的数据）
+    // 通知房间内其他玩家
     for (const player of result.room!.players) {
       if (player.id !== data.userId) {
         const playerSocket = getSocketByUserId(io, userSockets, player.id)
         if (playerSocket) {
-          playerSocket.emit(`${prefix}room:player_joined`, {
-            room: qigui523State.getRoomPublicData(result.room!, player.id),
-          })
+          if (result.isReconnect && result.wasOffline) {
+            playerSocket.emit(`${prefix}room:player_reconnected`, {
+              playerId: data.userId,
+              playerName: data.userName,
+              room: qigui523State.getRoomPublicData(result.room!, player.id),
+            })
+          } else if (!result.isReconnect) {
+            playerSocket.emit(`${prefix}room:player_joined`, {
+              room: qigui523State.getRoomPublicData(result.room!, player.id),
+            })
+          }
         }
       }
     }
@@ -325,6 +348,9 @@ export const qigui523Module: GameModule = {
       return
     }
 
+    // 记录之前是否离线
+    const wasOffline = !player.isOnline
+    
     // 标记玩家在线
     player.isOnline = true
 
@@ -333,16 +359,18 @@ export const qigui523Module: GameModule = {
       room: qigui523State.getRoomPublicData(room, data.userId),
     })
 
-    // 通知其他玩家（给每个玩家发送包含其手牌的数据）
-    for (const p of room.players) {
-      if (p.id !== data.userId) {
-        const playerSocket = getSocketByUserId(io, userSockets, p.id)
-        if (playerSocket) {
-          playerSocket.emit(`${prefix}room:player_reconnected`, {
-            playerId: data.userId,
-            playerName: player.name,
-            room: qigui523State.getRoomPublicData(room, p.id),
-          })
+    // 只有之前是离线状态才通知其他玩家重连
+    if (wasOffline) {
+      for (const p of room.players) {
+        if (p.id !== data.userId) {
+          const playerSocket = getSocketByUserId(io, userSockets, p.id)
+          if (playerSocket) {
+            playerSocket.emit(`${prefix}room:player_reconnected`, {
+              playerId: data.userId,
+              playerName: player.name,
+              room: qigui523State.getRoomPublicData(room, p.id),
+            })
+          }
         }
       }
     }
@@ -355,11 +383,11 @@ export const qigui523Module: GameModule = {
     if (room) {
       const player = room.players.find(p => p.id === userId)
       if (player) {
-        player.isOnline = false
-        
-        // 只在游戏进行中检查是否需要销毁房间
-        // 等待状态下不销毁，因为玩家可能只是刷新页面
+        // 只在游戏进行中处理离线状态
+        // 等待状态下不标记离线，因为玩家可能只是刷新页面或页面跳转
         if (room.phase === 'playing' || room.phase === 'finished') {
+          player.isOnline = false
+          
           const allOffline = room.players.every(p => !p.isOnline)
           if (allOffline) {
             // 通知房间解散
@@ -370,13 +398,13 @@ export const qigui523Module: GameModule = {
             ctx.io.emit('qigui523:room:list', qigui523State.getPublicRoomList())
             return
           }
+          
+          // 通知其他玩家该玩家离线
+          ctx.io.to(room.id).emit('qigui523:room:player_offline', {
+            playerId: userId,
+            playerName: player.name,
+          })
         }
-        
-        // 通知其他玩家该玩家离线
-        ctx.io.to(room.id).emit('qigui523:room:player_offline', {
-          playerId: userId,
-          playerName: player.name,
-        })
       }
     }
   },
