@@ -4,6 +4,7 @@ import type { GameModule, GameContext } from '../games/types'
 import { doudizhuModule } from '../games/doudizhu/handler'
 import { undercoverModule } from '../games/undercover/handler'
 import { qigui523Module } from '../games/qigui523/handler'
+import { bombermanModule } from '../games/bomberman/handler'
 
 // 全局 Socket.IO 实例
 let io: SocketServer | null = null
@@ -15,6 +16,7 @@ const gameModules: GameModule[] = [
   doudizhuModule,
   undercoverModule,
   qigui523Module,
+  bombermanModule,
 ]
 
 function initSocketIO(event: H3Event) {

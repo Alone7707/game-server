@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   ssr: true,
   
   devServer: {
+    host: '0.0.0.0', // 监听所有网络接口，允许局域网访问
     port: 3001, // 开发环境端口
   },
   

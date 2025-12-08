@@ -53,6 +53,20 @@
           </div>
         </NuxtLink>
         
+        <!-- 炸弹人 -->
+        <NuxtLink 
+          to="/bomberman" 
+          class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 hover:border-orange-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/10 group"
+        >
+          <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">💣</div>
+          <h2 class="text-xl font-bold text-orange-400 mb-2">炸弹人</h2>
+          <p class="text-slate-400 text-sm">经典泡泡堂玩法，放置炸弹消灭对手</p>
+          <div class="mt-4 text-xs text-slate-500">
+            <span class="inline-block bg-slate-700 px-2 py-1 rounded mr-2">2-4人</span>
+            <span class="inline-block bg-slate-700 px-2 py-1 rounded">实时对战</span>
+          </div>
+        </NuxtLink>
+        
         <!-- 德州扑克 (即将上线) -->
         <div class="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 opacity-50 cursor-not-allowed">
           <div class="text-5xl mb-4">♠️</div>
