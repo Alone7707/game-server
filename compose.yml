@@ -1,18 +1,15 @@
-version: '3.8'
-
 services:
-  games-server:
-    image: ghcr.io/${GITHUB_REPOSITORY:-alone7707/games-server}:latest
-    container_name: games-server
+  system-update:
+    image: ghcr.io/alone7707/game-server:latest
     restart: unless-stopped
     ports:
-      - "3003:3000"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - PORT=3003
+      - PORT=3000
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3003"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
