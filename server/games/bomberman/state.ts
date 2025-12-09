@@ -295,8 +295,11 @@ class BombermanStateManager {
         break // 碰到其他炸弹
       }
 
-      // 检查是否有玩家（不阻挡，泡泡可以穿过玩家）
-      // 可以继续移动
+      // 检查是否有玩家
+      if (room.players.some(p => p.isAlive && p.position.x === nextPos.x && p.position.y === nextPos.y)) {
+        break // 碰到玩家
+      }
+
       currentPos = nextPos
     }
 

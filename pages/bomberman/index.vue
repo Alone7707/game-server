@@ -12,6 +12,20 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- 左侧：操作区 -->
         <div class="space-y-4">
+          <!-- 当前玩家 -->
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">👤</span>
+              <span class="text-white font-medium">{{ userName }}</span>
+            </div>
+            <button
+              @click="showNameModal = true"
+              class="text-sm text-slate-400 hover:text-orange-400 transition"
+            >
+              修改
+            </button>
+          </div>
+
           <!-- 快速加入和创建房间 -->
           <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
             <button
@@ -246,6 +260,33 @@
         </div>
       </div>
     </div>
+
+    <!-- 名称设置弹窗 -->
+    <div
+      v-if="showNameModal"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
+    >
+      <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-sm border border-slate-700">
+        <h3 class="text-xl font-bold text-white mb-2 text-center">👤 欢迎来到炸弹人</h3>
+        <p class="text-slate-400 text-sm mb-6 text-center">请先设置你的游戏名称</p>
+
+        <input
+          v-model="tempName"
+          type="text"
+          placeholder="输入你的名字"
+          maxlength="12"
+          class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white text-center text-lg focus:outline-none focus:border-orange-500 mb-4"
+          @keyup.enter="confirmName"
+        />
+
+        <button
+          @click="confirmName"
+          class="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl font-semibold transition"
+        >
+          确认进入
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -288,15 +329,39 @@ const createForm = ref({
   },
 })
 
-onMounted(() => {
-  // 获取或生成用户信息
-  userId.value = localStorage.getItem('bomberman_userId') || `user_${Math.random().toString(36).substring(2, 8)}`
-  userName.value = localStorage.getItem('bomberman_userName') || `玩家${Math.floor(Math.random() * 10000)}`
-  localStorage.setItem('bomberman_userId', userId.value)
-  localStorage.setItem('bomberman_userName', userName.value)
+const showNameModal = ref(false)
+const tempName = ref('')
 
-  initSocket()
+onMounted(() => {
+  // 获取或生成用户ID
+  userId.value = localStorage.getItem('bomberman_userId') || `user_${Math.random().toString(36).substring(2, 8)}`
+  localStorage.setItem('bomberman_userId', userId.value)
+  
+  // 检查是否已设置名称
+  const savedName = localStorage.getItem('bomberman_userName')
+  if (savedName) {
+    userName.value = savedName
+    initSocket()
+  } else {
+    showNameModal.value = true
+  }
 })
+
+function confirmName() {
+  if (!tempName.value.trim()) {
+    alert('请输入名称')
+    return
+  }
+  userName.value = tempName.value.trim()
+  localStorage.setItem('bomberman_userName', userName.value)
+  showNameModal.value = false
+  tempName.value = ''
+  
+  // 如果 socket 未初始化，则初始化
+  if (!socket.value) {
+    initSocket()
+  }
+}
 
 onUnmounted(() => {
   socket.value?.disconnect()
