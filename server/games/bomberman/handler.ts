@@ -2,8 +2,9 @@
 
 import type { Server, Socket } from 'socket.io'
 import type { GameContext, GameModule } from '../types'
-import type { RoomRules } from './types'
+import type { RoomRules, Direction } from './types'
 import { bombermanState } from './state'
+import { botManager, type BotAction } from './bot'
 
 const prefix = 'bomberman:'
 
@@ -17,6 +18,50 @@ const bombermanHandler = {
 
     // 存储房间的濒死检查定时器
     const dyingCheckIntervals = new Map<string, NodeJS.Timeout>()
+
+    // 启动机器人 AI
+    function startBotAI(roomId: string) {
+      botManager.startBots(roomId, (botId: string, action: BotAction) => {
+        // 处理机器人的行动
+        if (action.type === 'move' && action.direction) {
+          const result = bombermanState.movePlayer(botId, action.direction as Direction)
+          if (result.success && result.room) {
+            io.to(result.room.id).emit(`${prefix}game:updated`, { room: result.room })
+
+            // 如果游戏结束
+            if (result.room.phase === 'finished') {
+              botManager.stopBots(roomId)
+              const winnerTeam = result.room.winnerTeam
+              if (winnerTeam) {
+                io.to(result.room.id).emit(`${prefix}game:finished`, {
+                  winnerTeam,
+                  winnerName: `${winnerTeam}队`,
+                })
+              } else {
+                const winner = result.room.players.find(p => p.id === result.room!.winner)
+                io.to(result.room.id).emit(`${prefix}game:finished`, {
+                  winnerId: result.room.winner,
+                  winnerName: winner?.name || '无人',
+                })
+              }
+            }
+          }
+        } else if (action.type === 'bomb') {
+          const result = bombermanState.placeBomb(botId)
+          if (result.success && result.room && result.bomb) {
+            io.to(result.room.id).emit(`${prefix}game:bomb_placed`, {
+              room: result.room,
+              bomb: result.bomb,
+            })
+
+            // 设置定时爆炸
+            setTimeout(() => {
+              handleBombExplosion(result.room!.id, result.bomb!.id)
+            }, result.room.rules.bombTimer)
+          }
+        }
+      })
+    }
 
     // 启动濒死检查定时器
     function startDyingCheck(roomId: string) {
@@ -158,6 +203,50 @@ const bombermanHandler = {
       }
     })
 
+    // ============ 机器人管理 ============
+
+    // 添加机器人
+    socket.on(`${prefix}bot:add`, (data: { roomId: string; userId: string; difficulty?: 'easy' | 'normal' | 'hard' }) => {
+      const room = bombermanState.getRoom(data.roomId)
+      if (!room) {
+        socket.emit(`${prefix}room:error`, { message: '房间不存在' })
+        return
+      }
+      if (room.hostId !== data.userId) {
+        socket.emit(`${prefix}room:error`, { message: '只有房主可以添加机器人' })
+        return
+      }
+
+      const result = bombermanState.addBot(data.roomId, data.difficulty || 'normal')
+      if (result.success && result.room) {
+        io.to(data.roomId).emit(`${prefix}room:updated`, { room: result.room })
+        io.emit(`${prefix}room:list`, bombermanState.getPublicRoomList())
+      } else {
+        socket.emit(`${prefix}room:error`, { message: result.error })
+      }
+    })
+
+    // 移除机器人
+    socket.on(`${prefix}bot:remove`, (data: { roomId: string; userId: string; botId?: string }) => {
+      const room = bombermanState.getRoom(data.roomId)
+      if (!room) {
+        socket.emit(`${prefix}room:error`, { message: '房间不存在' })
+        return
+      }
+      if (room.hostId !== data.userId) {
+        socket.emit(`${prefix}room:error`, { message: '只有房主可以移除机器人' })
+        return
+      }
+
+      const result = bombermanState.removeBot(data.roomId, data.botId)
+      if (result.success && result.room) {
+        io.to(data.roomId).emit(`${prefix}room:updated`, { room: result.room })
+        io.emit(`${prefix}room:list`, bombermanState.getPublicRoomList())
+      } else {
+        socket.emit(`${prefix}room:error`, { message: result.error })
+      }
+    })
+
     // 开始游戏
     socket.on(`${prefix}game:start`, (data: { roomId: string; userId: string }) => {
       const room = bombermanState.getRoom(data.roomId)
@@ -185,6 +274,11 @@ const bombermanHandler = {
       // 如果是队伍模式，启动濒死检查定时器
       if (result.room?.players.some(p => p.team !== null)) {
         startDyingCheck(data.roomId)
+      }
+
+      // 如果有机器人，启动 AI
+      if (result.room?.players.some(p => p.isBot)) {
+        startBotAI(data.roomId)
       }
     })
 
@@ -294,6 +388,9 @@ const bombermanHandler = {
 
       // 如果游戏结束
       if (explodeResult.room.phase === 'finished') {
+        // 停止机器人 AI
+        botManager.stopBots(roomId)
+        
         const winnerTeam = explodeResult.room.winnerTeam
         if (winnerTeam) {
           // 队伍模式
@@ -371,6 +468,9 @@ const bombermanHandler = {
         return
       }
 
+      // 停止机器人 AI
+      botManager.stopBots(data.roomId)
+      
       const result = bombermanState.resetGame(data.roomId)
 
       if (result.success && result.room) {
@@ -429,6 +529,7 @@ const bombermanHandler = {
             
             if (aliveTeamA.length === 0 || aliveTeamB.length === 0) {
               room.phase = 'finished'
+              botManager.stopBots(room.id)
               if (aliveTeamA.length === 0 && aliveTeamB.length > 0) {
                 room.winnerTeam = 'B'
               } else if (aliveTeamB.length === 0 && aliveTeamA.length > 0) {
@@ -447,6 +548,7 @@ const bombermanHandler = {
             // 个人模式
             if (alivePlayers.length <= 1) {
               room.phase = 'finished'
+              botManager.stopBots(room.id)
               room.winner = alivePlayers[0]?.id || null
 
               const winner = room.players.find(p => p.id === room.winner)

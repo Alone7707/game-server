@@ -27,6 +27,7 @@ export interface Player {
   name: string
   socketId?: string
   isOnline: boolean
+  isBot: boolean        // 是否为机器人
   isReady: boolean
   isAlive: boolean
   isDying: boolean       // 濒死状态（队伍模式）

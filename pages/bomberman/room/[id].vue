@@ -174,6 +174,44 @@
           </div>
         </div>
 
+        <!-- 机器人管理（仅房主可见） -->
+        <div v-if="isHost" class="bg-slate-700/30 rounded-xl p-4 mb-6">
+          <h3 class="text-slate-400 text-sm mb-3">🤖 添加机器人</h3>
+          <div class="flex flex-wrap justify-center gap-2">
+            <button
+              @click="addBot('easy')"
+              :disabled="room?.players?.length >= (room?.rules?.playerCount || 4)"
+              class="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition text-sm"
+            >
+              + 简单机器人
+            </button>
+            <button
+              @click="addBot('normal')"
+              :disabled="room?.players?.length >= (room?.rules?.playerCount || 4)"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition text-sm"
+            >
+              + 普通机器人
+            </button>
+            <button
+              @click="addBot('hard')"
+              :disabled="room?.players?.length >= (room?.rules?.playerCount || 4)"
+              class="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition text-sm"
+            >
+              + 困难机器人
+            </button>
+            <button
+              v-if="hasBots"
+              @click="removeBot()"
+              class="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition text-sm"
+            >
+              - 移除机器人
+            </button>
+          </div>
+          <div v-if="botCount > 0" class="text-center text-xs text-slate-500 mt-2">
+            当前 {{ botCount }} 个机器人
+          </div>
+        </div>
+
         <!-- 操作按钮 -->
         <div class="flex justify-center gap-4">
           <button
@@ -736,6 +774,18 @@ const waitingTeamAPlayers = computed(() => room.value?.players.filter(p => p.tea
 const waitingTeamBPlayers = computed(() => room.value?.players.filter(p => p.team === 'B') || [])
 const teamACount = computed(() => waitingTeamAPlayers.value.length)
 const teamBCount = computed(() => waitingTeamBPlayers.value.length)
+
+// 机器人相关
+const hasBots = computed(() => room.value?.players.some(p => p.name.includes('[简单]') || p.name.includes('[普通]') || p.name.includes('[困难]')) || false)
+const botCount = computed(() => room.value?.players.filter(p => p.name.includes('[简单]') || p.name.includes('[普通]') || p.name.includes('[困难]')).length || 0)
+
+function addBot(difficulty: 'easy' | 'normal' | 'hard') {
+  socket.value?.emit('bomberman:bot:add', { roomId: roomId, userId: userId.value, difficulty })
+}
+
+function removeBot() {
+  socket.value?.emit('bomberman:bot:remove', { roomId: roomId, userId: userId.value })
+}
 
 const winnerName = computed(() => {
   // 队伍模式

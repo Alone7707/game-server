@@ -28,11 +28,12 @@ class BombermanStateManager {
   // ============ 辅助函数 ============
   
   // 创建玩家对象
-  private createPlayer(id: string, name: string, rules: RoomRules, colorIndex: number): Player {
+  private createPlayer(id: string, name: string, rules: RoomRules, colorIndex: number, isBot: boolean = false): Player {
     return {
       id,
       name,
       isOnline: true,
+      isBot,
       isReady: false,
       isAlive: true,
       isDying: false,
@@ -1118,6 +1119,66 @@ class BombermanStateManager {
   getRoomPublicData(room: Room): Room {
     // 炸弹人游戏所有数据都是公开的
     return room
+  }
+
+  // ============ 机器人管理 ============
+
+  // 机器人名字列表
+  private readonly BOT_NAMES = ['小蓝', '小红', '小绿', '小黄', '小紫', '小橙', '阿呆', '阿瓜', '皮皮', '蛋蛋']
+
+  // 添加机器人
+  addBot(roomId: string, difficulty: 'easy' | 'normal' | 'hard' = 'normal'): { success: boolean; room?: Room; error?: string } {
+    const room = this.rooms.get(roomId)
+    if (!room) return { success: false, error: '房间不存在' }
+    if (room.phase !== 'waiting') return { success: false, error: '游戏已开始' }
+    if (room.players.length >= room.rules.playerCount) return { success: false, error: '房间已满' }
+
+    const botId = `bot_${this.generateId()}`
+    const existingBotNames = room.players.filter(p => p.isBot).map(p => p.name)
+    const availableNames = this.BOT_NAMES.filter(n => !existingBotNames.includes(n))
+    const botName = availableNames.length > 0 
+      ? availableNames[Math.floor(Math.random() * availableNames.length)]
+      : `机器人${room.players.filter(p => p.isBot).length + 1}`
+
+    const playerIndex = room.players.length
+    const bot = this.createPlayer(botId, `[${difficulty === 'easy' ? '简单' : difficulty === 'hard' ? '困难' : '普通'}]${botName}`, room.rules, playerIndex, true)
+    bot.isReady = true  // 机器人默认准备
+
+    // 踢弹大战模式：自动分配队伍
+    if (room.selectedMapId === 'kick_battle') {
+      this.autoAssignTeam(room, bot)
+    }
+
+    room.players.push(bot)
+    this.playerRooms.set(botId, roomId)
+    
+    return { success: true, room }
+  }
+
+  // 移除机器人
+  removeBot(roomId: string, botId?: string): { success: boolean; room?: Room; error?: string } {
+    const room = this.rooms.get(roomId)
+    if (!room) return { success: false, error: '房间不存在' }
+    if (room.phase !== 'waiting') return { success: false, error: '游戏已开始' }
+
+    // 如果没指定 botId，移除最后一个机器人
+    const targetBotId = botId || [...room.players].reverse().find(p => p.isBot)?.id
+    if (!targetBotId) return { success: false, error: '没有机器人' }
+
+    const botIndex = room.players.findIndex(p => p.id === targetBotId && p.isBot)
+    if (botIndex === -1) return { success: false, error: '机器人不存在' }
+
+    room.players.splice(botIndex, 1)
+    this.playerRooms.delete(targetBotId)
+
+    return { success: true, room }
+  }
+
+  // 获取房间所有机器人
+  getBots(roomId: string): Player[] {
+    const room = this.rooms.get(roomId)
+    if (!room) return []
+    return room.players.filter(p => p.isBot)
   }
 
   resetGame(roomId: string): { success: boolean; room?: Room } {
