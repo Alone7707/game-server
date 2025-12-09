@@ -14,7 +14,9 @@ export interface PresetMap {
   height: number
   layout: string[]
   maxPlayers: number
-  dropRate: number  // 道具掉落概率 0-1
+  dropRate: number      // 道具掉落概率 0-1
+  initialBombs: number  // 初始炸弹数量
+  initialRange: number  // 初始炸弹威力
 }
 
 // 地图定义 - 统一尺寸 17x13
@@ -27,6 +29,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 4,
     dropRate: 0.5,
+    initialBombs: 1,
+    initialRange: 2,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS.BB.B.B.B.BBS.W',
@@ -51,6 +55,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 4,
     dropRate: 1,
+    initialBombs: 2,
+    initialRange: 3,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS.............SW',
@@ -75,6 +81,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 4,
     dropRate: 0.5,
+    initialBombs: 1,
+    initialRange: 2,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS.B.B.B.B.B.B.SW',
@@ -99,6 +107,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 4,
     dropRate: 0.55,
+    initialBombs: 1,
+    initialRange: 3,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS.BBBB...BBBB.SW',
@@ -123,6 +133,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 6,
     dropRate: 0.5,
+    initialBombs: 2,
+    initialRange: 2,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS.BB..S..BB..S.W',
@@ -147,6 +159,8 @@ export const PRESET_MAPS: PresetMap[] = [
     height: 13,
     maxPlayers: 4,
     dropRate: 0.5,
+    initialBombs: 1,
+    initialRange: 2,
     layout: [
       'WWWWWWWWWWWWWWWWW',
       'WS..BB.....BB..SW',

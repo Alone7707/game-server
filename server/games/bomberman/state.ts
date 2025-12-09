@@ -206,14 +206,14 @@ class BombermanStateManager {
       }
     }
 
-    // 设置玩家出生点
+    // 设置玩家出生点（使用地图配置的初始值）
     room.players.forEach((player, index) => {
       const spawn = spawnPositions[index] || spawnPositions[0]
       player.position = { x: spawn.x, y: spawn.y }
       player.isAlive = true
-      player.bombCount = room.rules.initialBombs
-      player.maxBombs = room.rules.initialBombs
-      player.bombRange = room.rules.initialRange
+      player.bombCount = preset.initialBombs
+      player.maxBombs = preset.initialBombs
+      player.bombRange = preset.initialRange
       player.speed = 1
       player.canKick = false
       player.hasShield = false
