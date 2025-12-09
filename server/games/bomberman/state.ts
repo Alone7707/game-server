@@ -35,12 +35,15 @@ class BombermanStateManager {
       isOnline: true,
       isReady: false,
       isAlive: true,
+      isDying: false,
+      dyingAt: null,
       position: { x: 1, y: 1 },
       bombCount: rules.initialBombs,
       maxBombs: rules.initialBombs,
       bombRange: rules.initialRange,
       speed: 1,
       color: PLAYER_COLORS[colorIndex % PLAYER_COLORS.length],
+      team: null,  // 队伍（踢弹大战模式会分配）
       // 泡泡堂特殊能力
       canKick: false,
       hasShield: false,
@@ -71,6 +74,7 @@ class BombermanStateManager {
       explosions: [],
       powerUps: [],
       winner: null,
+      winnerTeam: null,
       createdAt: Date.now(),
       gameStartedAt: null,
     }
@@ -89,10 +93,33 @@ class BombermanStateManager {
     if (room.players.some(p => p.id === playerId)) return { success: false, error: '已在房间中' }
 
     const playerIndex = room.players.length
-    room.players.push(this.createPlayer(playerId, playerName, room.rules, playerIndex))
-
+    const player = this.createPlayer(playerId, playerName, room.rules, playerIndex)
+    
+    // 踢弹大战模式：自动分配队伍（平衡两队人数）
+    if (room.selectedMapId === 'kick_battle') {
+      this.autoAssignTeam(room, player)
+    }
+    
+    room.players.push(player)
     this.playerRooms.set(playerId, roomId)
     return { success: true, room }
+  }
+
+  // 自动分配队伍（加入人数少的队）
+  private autoAssignTeam(room: Room, player: Player): void {
+    const teamACount = room.players.filter(p => p.team === 'A').length
+    const teamBCount = room.players.filter(p => p.team === 'B').length
+    
+    const teamAColors = ['#3b82f6', '#60a5fa', '#93c5fd']
+    const teamBColors = ['#ef4444', '#f87171', '#fca5a5']
+    
+    if (teamACount <= teamBCount) {
+      player.team = 'A'
+      player.color = teamAColors[teamACount % teamAColors.length]
+    } else {
+      player.team = 'B'
+      player.color = teamBColors[teamBCount % teamBColors.length]
+    }
   }
 
   leaveRoom(playerId: string): { success: boolean; room?: Room; disbanded?: boolean } {
@@ -168,13 +195,89 @@ class BombermanStateManager {
     const preset = getPresetMap(mapId)
     if (!preset) return { success: false, error: '地图不存在' }
 
+    const wasKickBattle = room.selectedMapId === 'kick_battle'
+    const isKickBattle = mapId === 'kick_battle'
     room.selectedMapId = mapId
+    
+    // 切换到踢弹大战模式：自动分配队伍
+    if (isKickBattle && !wasKickBattle) {
+      this.autoAssignAllTeams(room)
+    }
+    // 从踢弹大战切换到其他模式：清除队伍
+    else if (!isKickBattle && wasKickBattle) {
+      this.clearAllTeams(room)
+    }
+    
     return { success: true, room }
+  }
+
+  // 给所有玩家自动分配队伍
+  private autoAssignAllTeams(room: Room): void {
+    const teamAColors = ['#3b82f6', '#60a5fa', '#93c5fd']
+    const teamBColors = ['#ef4444', '#f87171', '#fca5a5']
+    
+    room.players.forEach((player, index) => {
+      // 交替分配到A队和B队
+      if (index % 2 === 0) {
+        player.team = 'A'
+        const teamAIndex = Math.floor(index / 2)
+        player.color = teamAColors[teamAIndex % teamAColors.length]
+      } else {
+        player.team = 'B'
+        const teamBIndex = Math.floor(index / 2)
+        player.color = teamBColors[teamBIndex % teamBColors.length]
+      }
+    })
+  }
+
+  // 清除所有玩家的队伍
+  private clearAllTeams(room: Room): void {
+    room.players.forEach((player, index) => {
+      player.team = null
+      player.color = PLAYER_COLORS[index % PLAYER_COLORS.length]
+    })
   }
 
   // 获取地图列表
   getMapList(): Array<{ id: string; name: string; icon: string; maxPlayers: number }> {
     return PRESET_MAPS.map(m => ({ id: m.id, name: m.name, icon: m.icon, maxPlayers: m.maxPlayers }))
+  }
+
+  // 选择队伍（踢弹大战模式）
+  selectTeam(playerId: string, team: 'A' | 'B'): { success: boolean; room?: Room; error?: string } {
+    const roomId = this.playerRooms.get(playerId)
+    if (!roomId) return { success: false, error: '未在房间中' }
+
+    const room = this.rooms.get(roomId)
+    if (!room) return { success: false, error: '房间不存在' }
+    if (room.phase !== 'waiting') return { success: false, error: '游戏已开始' }
+    
+    // 只有踢弹大战模式才能选队伍
+    if (room.selectedMapId !== 'kick_battle') {
+      return { success: false, error: '当前地图不支持队伍模式' }
+    }
+
+    const player = room.players.find(p => p.id === playerId)
+    if (!player) return { success: false, error: '玩家不存在' }
+
+    // 检查队伍人数（每队最多3人）
+    const teamCount = room.players.filter(p => p.team === team).length
+    const isAlreadyInTeam = player.team === team
+    if (!isAlreadyInTeam && teamCount >= 3) {
+      return { success: false, error: `${team}队已满` }
+    }
+
+    player.team = team
+    // 根据队伍分配颜色
+    const teamAColors = ['#3b82f6', '#60a5fa', '#93c5fd']
+    const teamBColors = ['#ef4444', '#f87171', '#fca5a5']
+    const teamPlayers = room.players.filter(p => p.team === team)
+    const colorIndex = teamPlayers.indexOf(player)
+    player.color = team === 'A' 
+      ? teamAColors[colorIndex % teamAColors.length]
+      : teamBColors[colorIndex % teamBColors.length]
+
+    return { success: true, room }
   }
 
   startGame(roomId: string): { success: boolean; room?: Room; error?: string } {
@@ -193,31 +296,79 @@ class BombermanStateManager {
       return { success: false, error: `该地图最多支持${preset.maxPlayers}人` }
     }
 
+    const isKickBattleMode = preset.id === 'kick_battle'
+    
+    // 踢弹大战模式：检查队伍
+    if (isKickBattleMode) {
+      const teamAPlayers = room.players.filter(p => p.team === 'A')
+      const teamBPlayers = room.players.filter(p => p.team === 'B')
+      const noTeamPlayers = room.players.filter(p => p.team === null)
+      
+      if (noTeamPlayers.length > 0) {
+        return { success: false, error: '还有玩家未选择队伍' }
+      }
+      if (teamAPlayers.length === 0 || teamBPlayers.length === 0) {
+        return { success: false, error: '每队至少需要1名玩家' }
+      }
+    }
+
     room.map = generateMapFromPreset(preset)
     room.dropRate = preset.dropRate
     
-    // 从地图布局中找出生点
+    // 从地图布局中找出生点（按y坐标分组）
+    const midY = Math.floor(preset.height / 2)
+    const spawnPointsA: Position[] = []  // 上半部分出生点
+    const spawnPointsB: Position[] = []  // 下半部分出生点
     const spawnPositions: Position[] = []
+    
     for (let y = 0; y < preset.height; y++) {
       for (let x = 0; x < preset.width; x++) {
         if (preset.layout[y][x] === 'S') {
-          spawnPositions.push({ x, y })
+          const pos = { x, y }
+          spawnPositions.push(pos)
+          if (y < midY) {
+            spawnPointsA.push(pos)
+          } else {
+            spawnPointsB.push(pos)
+          }
         }
       }
     }
 
-    // 设置玩家出生点（使用地图配置的初始值）
+    // 设置玩家出生点
+    let spawnIndexA = 0
+    let spawnIndexB = 0
+
     room.players.forEach((player, index) => {
-      const spawn = spawnPositions[index] || spawnPositions[0]
+      // 踢弹大战模式：根据队伍分配出生点
+      let spawn: Position
+      if (isKickBattleMode) {
+        if (player.team === 'A') {
+          spawn = spawnPointsA[spawnIndexA % spawnPointsA.length]
+          spawnIndexA++
+        } else {
+          spawn = spawnPointsB[spawnIndexB % spawnPointsB.length]
+          spawnIndexB++
+        }
+      } else {
+        spawn = spawnPositions[index] || spawnPositions[0]
+        player.team = null
+      }
+      
       player.position = { x: spawn.x, y: spawn.y }
       player.isAlive = true
+      player.isDying = false
+      player.dyingAt = null
       player.bombCount = preset.initialBombs
       player.maxBombs = preset.initialBombs
       player.bombRange = preset.initialRange
       player.speed = 1
-      player.canKick = false
+      player.canKick = isKickBattleMode  // 踢弹大战模式默认有踢泡泡能力
       player.hasShield = false
       player.needleCount = 0
+      // 重置战绩
+      player.kills = 0
+      player.rescues = 0
     })
 
     room.phase = 'playing'
@@ -230,7 +381,7 @@ class BombermanStateManager {
   }
 
   // 玩家移动
-  movePlayer(playerId: string, direction: Direction): { success: boolean; room?: Room; error?: string; kickedBomb?: Bomb; pushingBomb?: Bomb; direction?: Direction } {
+  movePlayer(playerId: string, direction: Direction): { success: boolean; room?: Room; error?: string; kickedBomb?: Bomb; pushingBomb?: Bomb; direction?: Direction; rescuedPlayer?: Player } {
     const roomId = this.playerRooms.get(playerId)
     if (!roomId) return { success: false, error: '未在房间中' }
 
@@ -238,7 +389,7 @@ class BombermanStateManager {
     if (!room || room.phase !== 'playing') return { success: false, error: '游戏未开始' }
 
     const player = room.players.find(p => p.id === playerId)
-    if (!player || !player.isAlive) return { success: false, error: '玩家已死亡' }
+    if (!player || !player.isAlive || player.isDying) return { success: false, error: '玩家无法行动' }
 
     const newPos = { ...player.position }
     switch (direction) {
@@ -268,17 +419,45 @@ class BombermanStateManager {
 
     player.position = newPos
 
+    // 检查是否救援濒死队友
+    const rescuedPlayer = this.checkRescueTeammate(room, player)
+
     // 检查是否捡到道具
     this.checkPowerUp(room, player)
 
     // 注意：不在移动时检测爆炸，只在爆炸发生瞬间判定
     // 这样玩家可以在爆炸动画期间安全通过（符合泡泡堂逻辑）
 
-    return { success: true, room }
+    return { success: true, room, rescuedPlayer }
+  }
+
+  // 检查并救援濒死队友
+  private checkRescueTeammate(room: Room, player: Player): Player | undefined {
+    if (!player.team) return undefined
+    
+    // 找到同位置的濒死队友
+    const dyingTeammate = room.players.find(
+      p => p.id !== player.id && 
+           p.team === player.team && 
+           p.isDying && 
+           p.position.x === player.position.x && 
+           p.position.y === player.position.y
+    )
+    
+    if (dyingTeammate) {
+      // 救活队友
+      dyingTeammate.isDying = false
+      dyingTeammate.dyingAt = null
+      // 记录救援次数
+      player.rescues++
+      return dyingTeammate
+    }
+    
+    return undefined
   }
 
   // 踢泡泡到尽头
-  kickBombToEnd(roomId: string, bombId: string, direction: Direction): { success: boolean; room?: Room; bomb?: Bomb } {
+  kickBombToEnd(roomId: string, bombId: string, direction: Direction): { success: boolean; room?: Room; bomb?: Bomb; hitSpike?: boolean } {
     const room = this.rooms.get(roomId)
     if (!room) return { success: false }
 
@@ -291,7 +470,10 @@ class BombermanStateManager {
     bomb.isMoving = false
     bomb.moveDirection = null
 
-    return { success: true, room, bomb }
+    // 检查是否停在地刺上
+    const hitSpike = this.isBombOnSpike(room, finalPos)
+
+    return { success: true, room, bomb, hitSpike }
   }
 
   // 计算踢泡泡的最终位置
@@ -319,14 +501,21 @@ class BombermanStateManager {
       if (cell.type === 'wall' || cell.type === 'brick') {
         break // 碰到墙或砖块
       }
+      
+      // 铁丝网可以穿过，继续移动
+      // 地刺处停下（后续会触发爆炸）
+      if (cell.type === 'spike') {
+        currentPos = nextPos
+        break // 停在地刺上
+      }
 
       // 检查是否有其他炸弹
       if (room.bombs.some(b => b.id !== bombId && b.position.x === nextPos.x && b.position.y === nextPos.y)) {
         break // 碰到其他炸弹
       }
 
-      // 检查是否有玩家
-      if (room.players.some(p => p.isAlive && p.position.x === nextPos.x && p.position.y === nextPos.y)) {
+      // 检查是否有玩家（铁丝网隔开时可以继续）
+      if (cell.type !== 'fence' && room.players.some(p => p.isAlive && p.position.x === nextPos.x && p.position.y === nextPos.y)) {
         break // 碰到玩家
       }
 
@@ -357,6 +546,13 @@ class BombermanStateManager {
       // 检查是否可以移动
       if (this.canBombMoveTo(room, newPos, bomb.id)) {
         bomb.position = newPos
+        
+        // 检查是否碰到地刺，立即爆炸
+        if (this.isBombOnSpike(room, newPos)) {
+          explodedBombs.push(bomb.id)
+          bomb.isMoving = false
+          bomb.moveDirection = null
+        }
       } else {
         // 碰到障碍物停止
         bomb.isMoving = false
@@ -379,7 +575,7 @@ class BombermanStateManager {
 
     const cell = cells[pos.y][pos.x]
     
-    // 墙和砖块不能通过
+    // 墙和砖块不能通过（但铁丝网和地刺可以）
     if (cell.type === 'wall' || cell.type === 'brick') {
       return false
     }
@@ -389,12 +585,19 @@ class BombermanStateManager {
       return false
     }
 
-    // 玩家位置也停止
-    if (room.players.some(p => p.isAlive && p.position.x === pos.x && p.position.y === pos.y)) {
+    // 玩家位置也停止（但铁丝网隔开的情况下可以继续）
+    if (cell.type !== 'fence' && room.players.some(p => p.isAlive && p.position.x === pos.x && p.position.y === pos.y)) {
       return false
     }
 
     return true
+  }
+
+  // 检查炸弹是否在地刺上
+  private isBombOnSpike(room: Room, pos: Position): boolean {
+    if (!room.map) return false
+    const cell = room.map.cells[pos.y]?.[pos.x]
+    return cell?.type === 'spike'
   }
 
   // 使用针刺破泡泡
@@ -406,7 +609,7 @@ class BombermanStateManager {
     if (!room || room.phase !== 'playing') return { success: false, error: '游戏未开始' }
 
     const player = room.players.find(p => p.id === playerId)
-    if (!player || !player.isAlive) return { success: false, error: '玩家已死亡' }
+    if (!player || !player.isAlive || player.isDying) return { success: false, error: '玩家无法行动' }
 
     if (player.needleCount <= 0) {
       return { success: false, error: '没有针了' }
@@ -467,7 +670,7 @@ class BombermanStateManager {
     if (!room || room.phase !== 'playing') return { success: false, error: '游戏未开始' }
 
     const player = room.players.find(p => p.id === playerId)
-    if (!player || !player.isAlive) return { success: false, error: '玩家已死亡' }
+    if (!player || !player.isAlive || player.isDying) return { success: false, error: '玩家无法行动' }
 
     if (player.bombCount <= 0) {
       return { success: false, error: '没有可用炸弹' }
@@ -522,8 +725,8 @@ class BombermanStateManager {
     }
     room.explosions.push(explosion)
 
-    // 处理爆炸效果并获取连锁炸弹
-    const chainBombIds = this.handleExplosionEffects(room, explosionPositions)
+    // 处理爆炸效果并获取连锁炸弹（传入炸弹所有者ID用于统计击杀）
+    const chainBombIds = this.handleExplosionEffects(room, explosionPositions, bomb.playerId)
 
     // 检查游戏结束
     this.checkGameEnd(room)
@@ -614,8 +817,8 @@ class BombermanStateManager {
 
     const cell = cells[pos.y][pos.x]
     
-    // 墙和砖块不能通过
-    if (cell.type === 'wall' || cell.type === 'brick') {
+    // 墙、砖块、铁丝网不能通过（玩家不能穿过铁丝网）
+    if (cell.type === 'wall' || cell.type === 'brick' || cell.type === 'fence') {
       return false
     }
 
@@ -739,9 +942,12 @@ class BombermanStateManager {
     return 'bomb_count'
   }
 
-  private handleExplosionEffects(room: Room, positions: Position[]): string[] {
+  private handleExplosionEffects(room: Room, positions: Position[], bombOwnerId: string): string[] {
     const chainBombIds: string[] = []
     if (!room.map) return chainBombIds
+    
+    // 找到炸弹所有者
+    const bombOwner = room.players.find(p => p.id === bombOwnerId)
 
     for (const pos of positions) {
       // 摧毁砖块并可能生成道具
@@ -762,12 +968,31 @@ class BombermanStateManager {
 
       // 击杀玩家（盾牌保护）
       for (const player of room.players) {
-        if (player.isAlive && player.position.x === pos.x && player.position.y === pos.y) {
+        if (player.isAlive && !player.isDying && player.position.x === pos.x && player.position.y === pos.y) {
           if (player.hasShield) {
             // 盾牌抵消一次伤害
             player.hasShield = false
           } else {
-            player.isAlive = false
+            // 队伍模式：检查是否有队友可以救援
+            const hasTeammate = player.team && room.players.some(
+              p => p.id !== player.id && p.team === player.team && p.isAlive && !p.isDying
+            )
+            
+            // 记录击杀数（不算自杀，不算炸自己队友）
+            if (bombOwner && bombOwner.id !== player.id && bombOwner.team !== player.team) {
+              bombOwner.kills++
+            }
+            
+            if (hasTeammate) {
+              // 进入濒死状态
+              player.isDying = true
+              player.dyingAt = Date.now()
+            } else {
+              // 直接死亡
+              player.isAlive = false
+              player.isDying = false
+              player.dyingAt = null
+            }
           }
         }
       }
@@ -782,11 +1007,67 @@ class BombermanStateManager {
     return chainBombIds
   }
 
+  // 检查濒死玩家超时（6秒）
+  checkDyingTimeout(roomId: string): { room?: Room; diedPlayers: Player[] } {
+    const room = this.rooms.get(roomId)
+    if (!room || room.phase !== 'playing') return { diedPlayers: [] }
+    
+    const DYING_TIMEOUT = 6000 // 6秒
+    const now = Date.now()
+    const diedPlayers: Player[] = []
+    
+    for (const player of room.players) {
+      if (player.isDying && player.dyingAt && (now - player.dyingAt >= DYING_TIMEOUT)) {
+        // 超时，玩家死亡
+        player.isAlive = false
+        player.isDying = false
+        player.dyingAt = null
+        diedPlayers.push(player)
+      }
+    }
+    
+    if (diedPlayers.length > 0) {
+      this.checkGameEnd(room)
+    }
+    
+    return { room, diedPlayers }
+  }
+
   private checkGameEnd(room: Room): void {
-    const alivePlayers = room.players.filter(p => p.isAlive)
-    if (alivePlayers.length <= 1) {
-      room.phase = 'finished'
-      room.winner = alivePlayers[0]?.id || null
+    // 存活玩家：isAlive=true 且 不在濒死状态
+    const alivePlayers = room.players.filter(p => p.isAlive && !p.isDying)
+    
+    // 检查是否是队伍模式（踢弹大战）
+    const hasTeams = room.players.some(p => p.team !== null)
+    
+    if (hasTeams) {
+      // 队伍模式：检查是否有一队全灭（濒死不算存活）
+      const aliveTeamA = alivePlayers.filter(p => p.team === 'A')
+      const aliveTeamB = alivePlayers.filter(p => p.team === 'B')
+      
+      if (aliveTeamA.length === 0 && aliveTeamB.length > 0) {
+        // A队全灭，B队获胜
+        room.phase = 'finished'
+        room.winnerTeam = 'B'
+        room.winner = null
+      } else if (aliveTeamB.length === 0 && aliveTeamA.length > 0) {
+        // B队全灭，A队获胜
+        room.phase = 'finished'
+        room.winnerTeam = 'A'
+        room.winner = null
+      } else if (aliveTeamA.length === 0 && aliveTeamB.length === 0) {
+        // 平局
+        room.phase = 'finished'
+        room.winnerTeam = null
+        room.winner = null
+      }
+    } else {
+      // 个人模式：只剩1人或0人时结束
+      if (alivePlayers.length <= 1) {
+        room.phase = 'finished'
+        room.winner = alivePlayers[0]?.id || null
+        room.winnerTeam = null
+      }
     }
   }
 

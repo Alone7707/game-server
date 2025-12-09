@@ -4,7 +4,7 @@ export type GamePhase = 'waiting' | 'playing' | 'finished'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
-export type CellType = 'empty' | 'wall' | 'brick' | 'bomb' | 'explosion' | 'powerup'
+export type CellType = 'empty' | 'wall' | 'brick' | 'bomb' | 'explosion' | 'powerup' | 'fence' | 'spike'
 
 // 道具类型
 export type PowerUpType = 
@@ -29,18 +29,24 @@ export interface Player {
   isOnline: boolean
   isReady: boolean
   isAlive: boolean
+  isDying: boolean       // 濒死状态（队伍模式）
+  dyingAt: number | null // 进入濒死的时间
   position: Position
   bombCount: number      // 当前可放置炸弹数
   maxBombs: number       // 最大炸弹数
   bombRange: number      // 炸弹爆炸范围
   speed: number          // 移动速度
   color: string          // 玩家颜色
+  team: 'A' | 'B' | null // 队伍（踢弹大战模式）
   // 泡泡堂特殊能力
   canKick: boolean       // 能否踢泡泡
   hasShield: boolean     // 是否有盾牌
   needleCount: number    // 针的数量
   isTrapped: boolean     // 是否被困在泡泡中
   trappedAt: number | null  // 被困时间
+  // 战绩统计
+  kills: number          // 击杀数
+  rescues: number        // 救援队友次数
 }
 
 export interface Bomb {
@@ -101,6 +107,7 @@ export interface Room {
   explosions: Explosion[]
   powerUps: PowerUp[]
   winner: string | null
+  winnerTeam: 'A' | 'B' | null  // 获胜队伍（踢弹大战模式）
   createdAt: number
   gameStartedAt: number | null
 }

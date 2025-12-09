@@ -11,6 +11,49 @@ type UserSockets = Map<string, string>
 
 const bombermanHandler = {
   register(io: Server, socket: Socket, userSockets: UserSockets) {
+    // 存储玩家推泡泡的状态
+    const pushingState = new Map<string, { startTime: number; direction: string; timeout: NodeJS.Timeout }>()
+    const PUSH_DELAY = 300 // 推300ms后踢出
+
+    // 存储房间的濒死检查定时器
+    const dyingCheckIntervals = new Map<string, NodeJS.Timeout>()
+
+    // 启动濒死检查定时器
+    function startDyingCheck(roomId: string) {
+      // 清除旧的定时器
+      const oldInterval = dyingCheckIntervals.get(roomId)
+      if (oldInterval) clearInterval(oldInterval)
+      
+      // 每秒检查一次濒死超时
+      const interval = setInterval(() => {
+        const result = bombermanState.checkDyingTimeout(roomId)
+        if (result.room && result.diedPlayers.length > 0) {
+          io.to(roomId).emit(`${prefix}game:updated`, { room: result.room })
+          
+          // 检查游戏是否结束
+          if (result.room.phase === 'finished') {
+            clearInterval(interval)
+            dyingCheckIntervals.delete(roomId)
+            
+            const winnerTeam = result.room.winnerTeam
+            io.to(roomId).emit(`${prefix}game:finished`, {
+              winnerTeam,
+              winnerName: winnerTeam ? `${winnerTeam}队` : '无人',
+            })
+          }
+        }
+        
+        // 如果房间不存在或游戏结束，停止检查
+        const room = bombermanState.getRoom(roomId)
+        if (!room || room.phase !== 'playing') {
+          clearInterval(interval)
+          dyingCheckIntervals.delete(roomId)
+        }
+      }, 1000)
+      
+      dyingCheckIntervals.set(roomId, interval)
+    }
+
     // 获取房间列表
     socket.on(`${prefix}room:list`, () => {
       socket.emit(`${prefix}room:list`, bombermanState.getPublicRoomList())
@@ -104,6 +147,17 @@ const bombermanHandler = {
       socket.emit(`${prefix}game:mapList`, bombermanState.getMapList())
     })
 
+    // 选择队伍（踢弹大战模式）
+    socket.on(`${prefix}game:selectTeam`, (data: { userId: string; team: 'A' | 'B' }) => {
+      const result = bombermanState.selectTeam(data.userId, data.team)
+
+      if (result.success && result.room) {
+        io.to(result.room.id).emit(`${prefix}room:updated`, { room: result.room })
+      } else if (result.error) {
+        socket.emit(`${prefix}room:error`, { message: result.error })
+      }
+    })
+
     // 开始游戏
     socket.on(`${prefix}game:start`, (data: { roomId: string; userId: string }) => {
       const room = bombermanState.getRoom(data.roomId)
@@ -127,11 +181,12 @@ const bombermanHandler = {
 
       io.to(data.roomId).emit(`${prefix}game:started`, { room: result.room })
       io.emit(`${prefix}room:list`, bombermanState.getPublicRoomList())
+      
+      // 如果是队伍模式，启动濒死检查定时器
+      if (result.room?.players.some(p => p.team !== null)) {
+        startDyingCheck(data.roomId)
+      }
     })
-
-    // 存储玩家推泡泡的状态 { oderId_bombId: { startTime, direction, timeout } }
-    const pushingState = new Map<string, { startTime: number; direction: string; timeout: NodeJS.Timeout }>()
-    const PUSH_DELAY = 300 // 推300ms后踢出
 
     // 玩家移动
     socket.on(`${prefix}game:move`, (data: { userId: string; direction: string }) => {
@@ -150,11 +205,21 @@ const bombermanHandler = {
 
         // 如果游戏结束
         if (result.room.phase === 'finished') {
-          const winner = result.room.players.find(p => p.id === result.room!.winner)
-          io.to(result.room.id).emit(`${prefix}game:finished`, {
-            winnerId: result.room.winner,
-            winnerName: winner?.name,
-          })
+          const winnerTeam = result.room.winnerTeam
+          if (winnerTeam) {
+            // 队伍模式
+            io.to(result.room.id).emit(`${prefix}game:finished`, {
+              winnerTeam,
+              winnerName: `${winnerTeam}队`,
+            })
+          } else {
+            // 个人模式
+            const winner = result.room.players.find(p => p.id === result.room!.winner)
+            io.to(result.room.id).emit(`${prefix}game:finished`, {
+              winnerId: result.room.winner,
+              winnerName: winner?.name || '无人',
+            })
+          }
         }
       } else if (result.pushingBomb && result.direction) {
         // 正在推泡泡
@@ -178,6 +243,13 @@ const bombermanHandler = {
               if (kickResult.success && kickResult.room) {
                 io.to(kickResult.room.id).emit(`${prefix}game:updated`, { room: kickResult.room })
                 io.to(kickResult.room.id).emit(`${prefix}game:bomb_kicked`, { bomb: kickResult.bomb })
+                
+                // 如果碰到地刺，立即爆炸
+                if (kickResult.hitSpike && kickResult.bomb) {
+                  setTimeout(() => {
+                    handleBombExplosion(roomId, kickResult.bomb!.id)
+                  }, 50)
+                }
               }
             }
             pushingState.delete(pushKey)
@@ -222,11 +294,21 @@ const bombermanHandler = {
 
       // 如果游戏结束
       if (explodeResult.room.phase === 'finished') {
-        const winner = explodeResult.room.players.find(p => p.id === explodeResult.room!.winner)
-        io.to(explodeResult.room.id).emit(`${prefix}game:finished`, {
-          winnerId: explodeResult.room.winner,
-          winnerName: winner?.name,
-        })
+        const winnerTeam = explodeResult.room.winnerTeam
+        if (winnerTeam) {
+          // 队伍模式
+          io.to(explodeResult.room.id).emit(`${prefix}game:finished`, {
+            winnerTeam,
+            winnerName: `${winnerTeam}队`,
+          })
+        } else {
+          // 个人模式
+          const winner = explodeResult.room.players.find(p => p.id === explodeResult.room!.winner)
+          io.to(explodeResult.room.id).emit(`${prefix}game:finished`, {
+            winnerId: explodeResult.room.winner,
+            winnerName: winner?.name || '无人',
+          })
+        }
       }
 
       // 清除爆炸效果
@@ -334,18 +416,45 @@ const bombermanHandler = {
         // 游戏中断线视为死亡
         if (room.phase === 'playing') {
           player.isAlive = false
+          player.isDying = false
 
           // 检查游戏结束
-          const alivePlayers = room.players.filter(p => p.isAlive)
-          if (alivePlayers.length <= 1) {
-            room.phase = 'finished'
-            room.winner = alivePlayers[0]?.id || null
+          const alivePlayers = room.players.filter(p => p.isAlive && !p.isDying)
+          const hasTeams = room.players.some(p => p.team !== null)
+          
+          if (hasTeams) {
+            // 队伍模式
+            const aliveTeamA = alivePlayers.filter(p => p.team === 'A')
+            const aliveTeamB = alivePlayers.filter(p => p.team === 'B')
+            
+            if (aliveTeamA.length === 0 || aliveTeamB.length === 0) {
+              room.phase = 'finished'
+              if (aliveTeamA.length === 0 && aliveTeamB.length > 0) {
+                room.winnerTeam = 'B'
+              } else if (aliveTeamB.length === 0 && aliveTeamA.length > 0) {
+                room.winnerTeam = 'A'
+              } else {
+                room.winnerTeam = null
+              }
+              room.winner = null
+              
+              ctx.io.to(room.id).emit('bomberman:game:finished', {
+                winnerTeam: room.winnerTeam,
+                winnerName: room.winnerTeam ? `${room.winnerTeam}队` : '无人',
+              })
+            }
+          } else {
+            // 个人模式
+            if (alivePlayers.length <= 1) {
+              room.phase = 'finished'
+              room.winner = alivePlayers[0]?.id || null
 
-            const winner = room.players.find(p => p.id === room.winner)
-            ctx.io.to(room.id).emit('bomberman:game:finished', {
-              winnerId: room.winner,
-              winnerName: winner?.name,
-            })
+              const winner = room.players.find(p => p.id === room.winner)
+              ctx.io.to(room.id).emit('bomberman:game:finished', {
+                winnerId: room.winner,
+                winnerName: winner?.name || '无人',
+              })
+            }
           }
         }
 

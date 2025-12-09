@@ -3,6 +3,8 @@
 // B = 砖块 (brick)
 // . = 空地 (empty)
 // S = 出生点 (spawn, 会被清理为空地)
+// F = 铁丝网 (fence, 炸弹可穿过，人不可穿过)
+// T = 地刺 (spike, 炸弹碰到立即爆炸)
 
 import type { Cell, GameMap } from './types'
 
@@ -177,6 +179,33 @@ export const PRESET_MAPS: PresetMap[] = [
       'WWWWWWWWWWWWWWWWW',
     ],
   },
+  // 踢炸弹对战模式 - AB队对抗
+  {
+    id: 'kick_battle',
+    name: '踢弹大战',
+    icon: '⚔️',
+    width: 17,
+    height: 13,
+    maxPlayers: 6,
+    dropRate: 0.3,
+    initialBombs: 3,
+    initialRange: 3,
+    layout: [
+      'WWWWWWWWWWWWWWWWW',
+      'WS.....S....T..SW',
+      'W...............W',
+      'W.....T.........W',
+      'W...............W',
+      'W...............W',
+      'FFFFFFFFFFFFFFFFF',
+      'W...............W',
+      'W...............W',
+      'W.........T.....W',
+      'W...............W',
+      'WS..T..S.......SW',
+      'WWWWWWWWWWWWWWWWW',
+    ],
+  },
 ]
 
 // 根据布局字符串生成地图
@@ -193,6 +222,12 @@ export function generateMapFromPreset(preset: PresetMap): GameMap {
           break
         case 'B':
           cells[y][x] = { type: 'brick' }
+          break
+        case 'F':
+          cells[y][x] = { type: 'fence' }
+          break
+        case 'T':
+          cells[y][x] = { type: 'spike' }
           break
         case 'S':
         case '.':
