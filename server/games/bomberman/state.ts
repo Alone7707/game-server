@@ -50,6 +50,9 @@ class BombermanStateManager {
       needleCount: 0,
       isTrapped: false,
       trappedAt: null,
+      // 战绩统计
+      kills: 0,
+      rescues: 0,
     }
   }
 
