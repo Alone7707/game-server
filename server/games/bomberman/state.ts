@@ -1194,7 +1194,7 @@ class BombermanStateManager {
     room.gameStartedAt = null
 
     for (const player of room.players) {
-      player.isReady = false
+      player.isReady = player.isBot  // 机器人保持准备状态
       player.isAlive = true
       player.position = { x: 0, y: 0 }
       player.bombCount = room.rules.initialBombs
