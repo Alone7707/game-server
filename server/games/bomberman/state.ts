@@ -156,15 +156,23 @@ class BombermanStateManager {
     room.players = room.players.filter(p => p.id !== playerId)
     this.playerRooms.delete(playerId)
 
-    if (room.players.length === 0) {
+    // 检查是否还有真人玩家
+    const humanPlayers = room.players.filter(p => !p.isBot)
+    
+    if (humanPlayers.length === 0) {
+      // 没有真人了，解散房间（清理机器人）
+      for (const bot of room.players) {
+        this.playerRooms.delete(bot.id)
+      }
       this.rooms.delete(roomId)
       return { success: true, disbanded: true }
     }
 
-    // 房主离开，转移房主
+    // 房主离开，转移给真人玩家
     if (room.hostId === playerId) {
-      room.hostId = room.players[0].id
-      room.hostName = room.players[0].name
+      const newHost = humanPlayers[0]
+      room.hostId = newHost.id
+      room.hostName = newHost.name
     }
 
     return { success: true, room }
