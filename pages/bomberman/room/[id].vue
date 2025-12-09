@@ -64,12 +64,37 @@
           </div>
         </div>
 
+        <!-- 地图选择 -->
+        <div class="bg-slate-700/30 rounded-xl p-4 mb-6">
+          <h3 class="text-slate-400 text-sm mb-3">🗺️ 选择地图 <span v-if="!isHost" class="text-slate-500">(房主选择)</span></h3>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            <button
+              v-for="map in mapList"
+              :key="map.id"
+              @click="selectMap(map.id)"
+              :disabled="!isHost"
+              :class="[
+                'p-3 rounded-lg border-2 transition text-center',
+                room?.selectedMapId === map.id
+                  ? 'border-orange-500 bg-orange-500/20'
+                  : isHost
+                    ? 'border-slate-600 hover:border-slate-500 bg-slate-800/50'
+                    : 'border-slate-600 bg-slate-800/50 cursor-not-allowed opacity-60'
+              ]"
+            >
+              <div class="text-2xl mb-1">{{ map.icon }}</div>
+              <div class="text-xs text-slate-300">{{ map.name }}</div>
+              <div class="text-xs text-slate-500">{{ map.maxPlayers }}人</div>
+            </button>
+          </div>
+        </div>
+
         <!-- 游戏设置 -->
         <div class="bg-slate-700/30 rounded-xl p-4 mb-6">
-          <h3 class="text-slate-400 text-sm mb-2">游戏设置</h3>
+          <h3 class="text-slate-400 text-sm mb-2">⚙️ 游戏设置</h3>
           <div class="flex flex-wrap gap-4 text-sm">
             <span class="text-slate-300">
-              地图大小: <span class="text-orange-400">{{ mapSizeText }}</span>
+              当前地图: <span class="text-orange-400">{{ currentMap?.icon }} {{ currentMap?.name || '经典' }}</span>
             </span>
             <span class="text-slate-300">
               炸弹延时: <span class="text-orange-400">{{ room?.rules?.bombTimer || 3000 }}ms</span>
@@ -377,10 +402,18 @@ interface Room {
   players: Player[]
   phase: 'waiting' | 'playing' | 'finished'
   map: { width: number; height: number; cells: Cell[][] } | null
+  selectedMapId: string
   bombs: Bomb[]
   explosions: Explosion[]
   powerUps: PowerUp[]
   winner: string | null
+}
+
+interface MapInfo {
+  id: string
+  name: string
+  icon: string
+  maxPlayers: number
 }
 
 const route = useRoute()
@@ -393,11 +426,13 @@ const userId = ref('')
 const userName = ref('')
 
 const toast = ref({ show: false, message: '', type: 'success' as 'success' | 'warning' | 'error' })
+const mapList = ref<MapInfo[]>([])
 
 const cellSize = 40
 
 const myPlayer = computed(() => room.value?.players.find(p => p.id === userId.value))
 const isHost = computed(() => room.value?.hostId === userId.value)
+const currentMap = computed(() => mapList.value.find(m => m.id === room.value?.selectedMapId))
 const canStart = computed(() => {
   if (!room.value) return false
   if (room.value.players.length < 2) return false
@@ -492,6 +527,11 @@ function initSocket() {
 
   socket.value.on('connect', () => {
     socket.value?.emit('bomberman:room:rejoin', { roomId, userId: userId.value })
+    socket.value?.emit('bomberman:game:getMapList')
+  })
+
+  socket.value.on('bomberman:game:mapList', (data: MapInfo[]) => {
+    mapList.value = data
   })
 
   socket.value.on('bomberman:room:joined', (data: { room: Room }) => {
@@ -561,6 +601,11 @@ function initSocket() {
       setTimeout(() => router.push('/bomberman'), 1500)
     }
   })
+}
+
+function selectMap(mapId: string) {
+  if (!isHost.value) return
+  socket.value?.emit('bomberman:game:selectMap', { userId: userId.value, mapId })
 }
 
 function getDirectionFromKey(key: string): string | null {

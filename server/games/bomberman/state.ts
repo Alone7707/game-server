@@ -2,6 +2,7 @@
 
 import type { Room, Player, RoomRules, GameMap, Cell, Bomb, Explosion, PowerUp, Position, PowerUpType, Direction } from './types'
 import { DEFAULT_RULES, PLAYER_COLORS } from './types'
+import { PRESET_MAPS, getPresetMap, generateMapFromPreset } from './maps'
 
 // 地图尺寸配置
 const MAP_SIZES = {
@@ -64,6 +65,8 @@ class BombermanStateManager {
       players: [this.createPlayer(hostId, hostName, mergedRules, 0)],
       phase: 'waiting',
       map: null,
+      selectedMapId: 'classic',
+      dropRate: 0.5,
       bombs: [],
       explosions: [],
       powerUps: [],
@@ -152,6 +155,28 @@ class BombermanStateManager {
     return { success: true, room }
   }
 
+  // 选择地图（仅房主可操作）
+  selectMap(playerId: string, mapId: string): { success: boolean; room?: Room; error?: string } {
+    const roomId = this.playerRooms.get(playerId)
+    if (!roomId) return { success: false, error: '未在房间中' }
+
+    const room = this.rooms.get(roomId)
+    if (!room) return { success: false, error: '房间不存在' }
+    if (room.phase !== 'waiting') return { success: false, error: '游戏已开始' }
+    if (room.hostId !== playerId) return { success: false, error: '只有房主可以选择地图' }
+
+    const preset = getPresetMap(mapId)
+    if (!preset) return { success: false, error: '地图不存在' }
+
+    room.selectedMapId = mapId
+    return { success: true, room }
+  }
+
+  // 获取地图列表
+  getMapList(): Array<{ id: string; name: string; icon: string; maxPlayers: number }> {
+    return PRESET_MAPS.map(m => ({ id: m.id, name: m.name, icon: m.icon, maxPlayers: m.maxPlayers }))
+  }
+
   startGame(roomId: string): { success: boolean; room?: Room; error?: string } {
     const room = this.rooms.get(roomId)
     if (!room) return { success: false, error: '房间不存在' }
@@ -161,33 +186,38 @@ class BombermanStateManager {
       return { success: false, error: '还有玩家未准备' }
     }
 
-    // 生成地图
-    room.map = this.generateMap(room.rules.mapSize)
+    // 使用预设地图
+    const preset = getPresetMap(room.selectedMapId)
+    if (!preset) return { success: false, error: '地图不存在' }
+    if (room.players.length > preset.maxPlayers) {
+      return { success: false, error: `该地图最多支持${preset.maxPlayers}人` }
+    }
+
+    room.map = generateMapFromPreset(preset)
+    room.dropRate = preset.dropRate
     
-    // 设置玩家出生点
-    const mapSize = MAP_SIZES[room.rules.mapSize]
-    room.players.forEach((player, index) => {
-      const spawn = SPAWN_POINTS[index]
-      let x: number, y: number
-      
-      // 处理X坐标
-      if ('midX' in spawn && spawn.midX) {
-        // 中间位置，确保是奇数位置（避开墙）
-        x = Math.floor(mapSize.width / 2)
-        if (x % 2 === 0) x++  // 偶数列是墙，移到奇数列
-      } else {
-        x = spawn.x < 0 ? mapSize.width + spawn.x : spawn.x
+    // 从地图布局中找出生点
+    const spawnPositions: Position[] = []
+    for (let y = 0; y < preset.height; y++) {
+      for (let x = 0; x < preset.width; x++) {
+        if (preset.layout[y][x] === 'S') {
+          spawnPositions.push({ x, y })
+        }
       }
-      
-      // 处理Y坐标
-      y = spawn.y < 0 ? mapSize.height + spawn.y : spawn.y
-      
-      player.position = { x, y }
+    }
+
+    // 设置玩家出生点
+    room.players.forEach((player, index) => {
+      const spawn = spawnPositions[index] || spawnPositions[0]
+      player.position = { x: spawn.x, y: spawn.y }
       player.isAlive = true
       player.bombCount = room.rules.initialBombs
       player.maxBombs = room.rules.initialBombs
       player.bombRange = room.rules.initialRange
       player.speed = 1
+      player.canKick = false
+      player.hasShield = false
+      player.needleCount = 0
     })
 
     room.phase = 'playing'
@@ -719,8 +749,8 @@ class BombermanStateManager {
       if (cell.type === 'brick') {
         room.map.cells[pos.y][pos.x] = { type: 'empty' }
         
-        // 50%概率掉落道具
-        if (Math.random() < 0.5) {
+        // 根据地图配置的概率掉落道具
+        if (Math.random() < room.dropRate) {
           const powerUp: PowerUp = {
             id: this.generateId(),
             type: this.randomPowerUpType(),

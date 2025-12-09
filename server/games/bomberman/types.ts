@@ -95,6 +95,8 @@ export interface Room {
   players: Player[]
   phase: GamePhase
   map: GameMap | null
+  selectedMapId: string  // 选择的地图ID
+  dropRate: number       // 道具掉落概率
   bombs: Bomb[]
   explosions: Explosion[]
   powerUps: PowerUp[]

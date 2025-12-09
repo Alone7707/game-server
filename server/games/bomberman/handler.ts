@@ -88,6 +88,22 @@ const bombermanHandler = {
       }
     })
 
+    // 选择地图
+    socket.on(`${prefix}game:selectMap`, (data: { userId: string; mapId: string }) => {
+      const result = bombermanState.selectMap(data.userId, data.mapId)
+
+      if (result.success && result.room) {
+        io.to(result.room.id).emit(`${prefix}room:updated`, { room: result.room })
+      } else if (result.error) {
+        socket.emit(`${prefix}room:error`, { message: result.error })
+      }
+    })
+
+    // 获取地图列表
+    socket.on(`${prefix}game:getMapList`, () => {
+      socket.emit(`${prefix}game:mapList`, bombermanState.getMapList())
+    })
+
     // 开始游戏
     socket.on(`${prefix}game:start`, (data: { roomId: string; userId: string }) => {
       const room = bombermanState.getRoom(data.roomId)
