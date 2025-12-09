@@ -1,13 +1,16 @@
 # 构建阶段
 FROM node:20-alpine AS builder
 
+# 安装构建工具（某些依赖需要）
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # 复制依赖文件
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json* ./
 
 # 安装依赖
-RUN npm ci
+RUN npm install
 
 # 复制源码
 COPY . .
