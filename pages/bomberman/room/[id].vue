@@ -169,7 +169,7 @@
           <div
             v-for="bomb in room.bombs"
             :key="bomb.id"
-            class="absolute flex items-center justify-center text-2xl animate-pulse"
+            class="absolute flex items-center justify-center text-2xl animate-pulse transition-all duration-300 ease-out"
             :style="{
               left: bomb.position.x * cellSize + 'px',
               top: bomb.position.y * cellSize + 'px',
@@ -201,7 +201,7 @@
           <div
             v-for="player in room.players.filter(p => p.isAlive)"
             :key="player.id"
-            class="absolute flex items-center justify-center text-2xl transition-all duration-100"
+            class="absolute flex items-center justify-center transition-all duration-100 pointer-events-none"
             :style="{
               left: player.position.x * cellSize + 'px',
               top: player.position.y * cellSize + 'px',
@@ -209,21 +209,45 @@
               height: cellSize + 'px',
             }"
           >
-            <div
-              class="w-8 h-8 rounded-full flex items-center justify-center"
-              :style="{ backgroundColor: player.color }"
-              :class="{ 'ring-2 ring-white': player.id === myPlayer?.id }"
-            >
-              😎
+            <div class="relative flex items-center justify-center">
+              <span 
+                class="text-base drop-shadow-md"
+                :class="{ 
+                  'animate-pulse': player.id === myPlayer?.id
+                }"
+                :style="{ filter: `drop-shadow(0 0 3px ${player.color})` }"
+              >🧍</span>
+              <!-- 自己的标识 -->
+              <div v-if="player.id === myPlayer?.id" class="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-white"></div>
+              <!-- 盾牌效果 -->
+              <div v-if="player.hasShield" class="absolute -top-1 -right-2 text-[10px]">🛡️</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 操作提示 -->
-      <div class="text-center mt-4 text-slate-400 text-sm">
-        使用 <kbd class="px-2 py-1 bg-slate-700 rounded">↑↓←→</kbd> 或 <kbd class="px-2 py-1 bg-slate-700 rounded">WASD</kbd> 移动，
-        <kbd class="px-2 py-1 bg-slate-700 rounded">空格</kbd> 放置炸弹
+      <div class="text-center mt-4 text-slate-400 text-sm space-y-1">
+        <div>
+          <kbd class="px-2 py-1 bg-slate-700 rounded">↑↓←→</kbd> 或 <kbd class="px-2 py-1 bg-slate-700 rounded">WASD</kbd> 移动，
+          <kbd class="px-2 py-1 bg-slate-700 rounded">空格</kbd> 放置炸弹
+        </div>
+        <div>
+          <kbd class="px-2 py-1 bg-slate-700 rounded">E</kbd> 射针（需道具）
+        </div>
+      </div>
+      
+      <!-- 我的能力显示 -->
+      <div v-if="myPlayer && room?.phase === 'playing'" class="mt-4 flex justify-center gap-4 text-sm">
+        <div class="flex items-center gap-1" :class="myPlayer.canKick ? 'text-green-400' : 'text-slate-600'">
+          🦶 {{ myPlayer.canKick ? '可踢泡泡' : '踢泡泡' }}
+        </div>
+        <div class="flex items-center gap-1" :class="myPlayer.hasShield ? 'text-yellow-400' : 'text-slate-600'">
+          🛡️ {{ myPlayer.hasShield ? '有盾' : '无盾' }}
+        </div>
+        <div class="flex items-center gap-1" :class="myPlayer.needleCount > 0 ? 'text-red-400' : 'text-slate-600'">
+          📌 x{{ myPlayer.needleCount || 0 }}
+        </div>
       </div>
     </div>
 
@@ -304,6 +328,12 @@ interface Player {
   bombRange: number
   speed: number
   color: string
+  // 泡泡堂特殊能力
+  canKick: boolean
+  hasShield: boolean
+  needleCount: number
+  isTrapped: boolean
+  trappedAt: number | null
 }
 
 interface Cell {
@@ -315,6 +345,8 @@ interface Bomb {
   playerId: string
   position: Position
   range: number
+  isMoving: boolean
+  moveDirection: string | null
 }
 
 interface Explosion {
@@ -323,9 +355,11 @@ interface Explosion {
   expiresAt: number
 }
 
+type PowerUpType = 'bomb_count' | 'bomb_range' | 'speed' | 'kick' | 'shield' | 'needle' | 'max_bomb' | 'max_range'
+
 interface PowerUp {
   id: string
-  type: 'bomb_count' | 'bomb_range' | 'speed'
+  type: PowerUpType
   position: Position
 }
 
@@ -552,13 +586,28 @@ function getDirectionFromKey(key: string): string | null {
   }
 }
 
+// 记录最后移动方向，用于扔泡泡和针
+const lastDirection = ref<string>('down')
+
 function handleKeyDown(e: KeyboardEvent) {
   if (room.value?.phase !== 'playing' || !myPlayer.value?.isAlive) return
 
-  // 放炸弹
+  // 放炸弹（空格）
   if (e.key === ' ') {
     e.preventDefault()
     placeBomb()
+    return
+  }
+
+  // 使用针（E键）
+  if (e.key === 'e' || e.key === 'E') {
+    e.preventDefault()
+    if (myPlayer.value?.needleCount && myPlayer.value.needleCount > 0) {
+      socket.value?.emit('bomberman:game:needle', { 
+        userId: userId.value, 
+        direction: lastDirection.value 
+      })
+    }
     return
   }
 
@@ -566,6 +615,7 @@ function handleKeyDown(e: KeyboardEvent) {
   const direction = getDirectionFromKey(e.key)
   if (direction) {
     e.preventDefault()
+    lastDirection.value = direction
     startMoving(direction)
   }
 }
@@ -595,10 +645,15 @@ function getPowerUpAt(x: number, y: number): PowerUp | undefined {
 
 function getPowerUpIcon(type?: string): string {
   switch (type) {
-    case 'bomb_count': return '💣'
-    case 'bomb_range': return '🔥'
-    case 'speed': return '👟'
-    default: return ''
+    case 'bomb_count': return '💣'    // 泡泡+1
+    case 'bomb_range': return '💧'    // 药水（范围+1）
+    case 'speed': return '👟'         // 溜冰鞋
+    case 'kick': return '🦶'          // 踢泡泡
+    case 'shield': return '🛡️'       // 盾牌
+    case 'needle': return '📌'        // 针
+    case 'max_bomb': return '💥'      // 最大泡泡
+    case 'max_range': return '🌊'     // 最大药水
+    default: return '❓'
   }
 }
 

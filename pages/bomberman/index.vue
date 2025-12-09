@@ -34,14 +34,23 @@
               <span>📖</span> 游戏规则
             </h3>
             <ul class="text-slate-400 text-sm space-y-2">
-              <li>• 使用方向键或WASD移动角色</li>
-              <li>• 按空格键放置炸弹</li>
               <li>• 炸弹爆炸会产生十字形火焰</li>
-              <li>• 被火焰击中会死亡</li>
+              <li>• 炸弹可以引燃其他炸弹（连锁爆炸）</li>
               <li>• 炸开砖块可能获得道具</li>
-              <li>• 道具可增加炸弹数量、范围或速度</li>
               <li>• 最后存活的玩家获胜</li>
             </ul>
+          </div>
+
+          <!-- 道具说明 -->
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+            <h3 class="text-orange-400 font-semibold mb-4 flex items-center gap-2">
+              <span>🎁</span> 道具说明
+            </h3>
+            <div class="text-slate-400 text-xs space-y-1">
+              <div>💣 泡泡+1 | 💧 范围+1 | 👟 速度+1</div>
+              <div>🦶 踢泡泡 | 🛡️ 盾牌 | 📌 针</div>
+              <div>💥 最大泡泡 | 🌊 最大范围</div>
+            </div>
           </div>
 
           <!-- 操作说明 -->
@@ -59,6 +68,10 @@
               <div class="flex items-center gap-3">
                 <kbd class="px-2 py-1 bg-slate-700 rounded text-xs">空格</kbd>
                 <span>放置炸弹</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <kbd class="px-2 py-1 bg-slate-700 rounded text-xs">E</kbd>
+                <span>射针（需道具）</span>
               </div>
             </div>
           </div>
@@ -144,11 +157,11 @@
             <label class="block text-slate-400 text-sm mb-2">玩家人数</label>
             <div class="flex gap-2">
               <button
-                v-for="n in [2, 3, 4]"
+                v-for="n in [2, 3, 4, 5, 6]"
                 :key="n"
-                @click="createForm.rules.playerCount = n"
+                @click="setPlayerCount(n)"
                 :class="[
-                  'flex-1 py-2 rounded-lg transition',
+                  'flex-1 py-2 rounded-lg transition text-sm',
                   createForm.rules.playerCount === n
                     ? 'bg-orange-500 text-white'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -165,17 +178,23 @@
               <button
                 v-for="size in ['small', 'medium', 'large']"
                 :key="size"
-                @click="createForm.rules.mapSize = size as 'small' | 'medium' | 'large'"
+                @click="setMapSize(size as 'small' | 'medium' | 'large')"
+                :disabled="!canSelectMapSize(size as 'small' | 'medium' | 'large')"
                 :class="[
                   'flex-1 py-2 rounded-lg transition',
                   createForm.rules.mapSize === size
                     ? 'bg-orange-500 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    : !canSelectMapSize(size as 'small' | 'medium' | 'large')
+                      ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 ]"
               >
                 {{ size === 'small' ? '小' : size === 'medium' ? '中' : '大' }}
               </button>
             </div>
+            <p v-if="createForm.rules.playerCount > 4" class="text-xs text-slate-500 mt-1">
+              5-6人需要中/大地图
+            </p>
           </div>
         </div>
 
@@ -364,6 +383,27 @@ function quickJoin() {
       roomName: `${userName.value}的房间`,
       rules: { playerCount: 4, mapSize: 'medium' },
     })
+  }
+}
+
+// 地图大小限制：小地图最多4人
+function canSelectMapSize(size: 'small' | 'medium' | 'large'): boolean {
+  const playerCount = createForm.value.rules.playerCount
+  if (size === 'small' && playerCount > 4) return false
+  return true
+}
+
+function setPlayerCount(n: number) {
+  createForm.value.rules.playerCount = n
+  // 如果当前地图大小不支持该人数，自动调整
+  if (!canSelectMapSize(createForm.value.rules.mapSize)) {
+    createForm.value.rules.mapSize = 'medium'
+  }
+}
+
+function setMapSize(size: 'small' | 'medium' | 'large') {
+  if (canSelectMapSize(size)) {
+    createForm.value.rules.mapSize = size
   }
 }
 </script>

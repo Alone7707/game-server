@@ -113,12 +113,24 @@ const bombermanHandler = {
       io.emit(`${prefix}room:list`, bombermanState.getPublicRoomList())
     })
 
+    // 存储玩家推泡泡的状态 { oderId_bombId: { startTime, direction, timeout } }
+    const pushingState = new Map<string, { startTime: number; direction: string; timeout: NodeJS.Timeout }>()
+    const PUSH_DELAY = 300 // 推300ms后踢出
+
     // 玩家移动
     socket.on(`${prefix}game:move`, (data: { userId: string; direction: string }) => {
-      const result = bombermanState.movePlayer(data.userId, data.direction)
+      const result = bombermanState.movePlayer(data.userId, data.direction as 'up' | 'down' | 'left' | 'right')
 
       if (result.success && result.room) {
         io.to(result.room.id).emit(`${prefix}game:updated`, { room: result.room })
+
+        // 清除之前的推泡泡状态（因为成功移动了）
+        const pushKey = `${data.userId}_push`
+        const existingPush = pushingState.get(pushKey)
+        if (existingPush) {
+          clearTimeout(existingPush.timeout)
+          pushingState.delete(pushKey)
+        }
 
         // 如果游戏结束
         if (result.room.phase === 'finished') {
@@ -127,6 +139,47 @@ const bombermanHandler = {
             winnerId: result.room.winner,
             winnerName: winner?.name,
           })
+        }
+      } else if (result.pushingBomb && result.direction) {
+        // 正在推泡泡
+        const pushKey = `${data.userId}_push`
+        const existingPush = pushingState.get(pushKey)
+        
+        if (existingPush && existingPush.direction === data.direction) {
+          // 继续推同一个方向，检查是否达到300ms
+          // timeout已经在运行，不需要做什么
+        } else {
+          // 新的推或者换方向了，重新计时
+          if (existingPush) {
+            clearTimeout(existingPush.timeout)
+          }
+          
+          const timeout = setTimeout(() => {
+            // 300ms到了，踢出泡泡
+            const roomId = bombermanState.getPlayerRoom(data.userId)
+            if (roomId && result.pushingBomb) {
+              const kickResult = bombermanState.kickBombToEnd(roomId, result.pushingBomb.id, result.direction as 'up' | 'down' | 'left' | 'right')
+              if (kickResult.success && kickResult.room) {
+                io.to(kickResult.room.id).emit(`${prefix}game:updated`, { room: kickResult.room })
+                io.to(kickResult.room.id).emit(`${prefix}game:bomb_kicked`, { bomb: kickResult.bomb })
+              }
+            }
+            pushingState.delete(pushKey)
+          }, PUSH_DELAY)
+
+          pushingState.set(pushKey, {
+            startTime: Date.now(),
+            direction: data.direction,
+            timeout
+          })
+        }
+      } else {
+        // 其他失败情况，清除推泡泡状态
+        const pushKey = `${data.userId}_push`
+        const existingPush = pushingState.get(pushKey)
+        if (existingPush) {
+          clearTimeout(existingPush.timeout)
+          pushingState.delete(pushKey)
         }
       }
     })
@@ -188,6 +241,21 @@ const bombermanHandler = {
         setTimeout(() => {
           handleBombExplosion(result.room!.id, result.bomb!.id)
         }, result.room.rules.bombTimer)
+      }
+    })
+
+    // 使用针
+    socket.on(`${prefix}game:needle`, (data: { userId: string; direction: string }) => {
+      const result = bombermanState.useNeedle(data.userId, data.direction as 'up' | 'down' | 'left' | 'right')
+
+      if (!result.success) {
+        socket.emit(`${prefix}game:error`, { message: result.error })
+        return
+      }
+
+      if (result.room && result.poppedBomb) {
+        // 立即引爆被针刺破的泡泡
+        handleBombExplosion(result.room.id, result.poppedBomb.id)
       }
     })
 
